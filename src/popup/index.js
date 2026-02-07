@@ -430,6 +430,9 @@ function setupEventListeners() {
         action: 'switchSession', 
         sessionId 
       });
+      // 重新加载所有会话数据确保同步
+      const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
+      currentSessions = result.sessions || {};
       await loadTree(sessionId);
       await updateStats();
     } else {

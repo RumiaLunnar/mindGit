@@ -223,7 +223,7 @@ body {
   line-height: 1.5;
 }
 
-/* 树形节点 */
+/* 树形结构 - 简化设计 */
 .tree-wrapper {
   position: relative;
 }
@@ -232,56 +232,11 @@ body {
   position: relative;
 }
 
-/* 子节点容器 */
+/* 子节点容器 - 只有左边框表示层级 */
 .children-container {
-  position: relative;
-  margin-left: 16px;
-}
-
-/* 每个子节点的连接线 */
-.children-container > .tree-node {
-  position: relative;
-}
-
-/* 竖线：从父节点下来 */
-.children-container > .tree-node::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: -2px;
-  height: 20px;
-  width: 1.5px;
-  background: var(--tree-line-color);
-  opacity: 0.5;
-}
-
-/* 横线：连接到节点 */
-.children-container > .tree-node > .node-content::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  width: 10px;
-  height: 1.5px;
-  background: var(--tree-line-color);
-  opacity: 0.5;
-}
-
-/* 中间子节点：竖线继续向下 */
-.children-container > .tree-node:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 18px;
-  bottom: -4px;
-  width: 1.5px;
-  background: var(--tree-line-color);
-  opacity: 0.5;
-}
-
-/* 根节点没有连接线 */
-.tree-wrapper > .tree-node > .node-content::before {
-  display: none;
+  margin-left: 12px;
+  padding-left: 8px;
+  border-left: 1.5px solid var(--tree-line-color);
 }
 
 .children-container.collapsed {
