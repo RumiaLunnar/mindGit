@@ -42,18 +42,20 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadTheme();
   await loadSettings();
-  await loadSessions();
-  setupEventListeners();
   
-  // 如果没有会话且启用了自动创建，尝试自动创建
-  await tryAutoCreateSession();
-  
-  // 监听存储变化
+  // 监听存储变化（在加载会话之前注册，避免漏掉变化）
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.sessions) {
       checkAndRefresh();
     }
   });
+  
+  // 加载会话列表
+  await loadSessions();
+  setupEventListeners();
+  
+  // 如果没有会话且启用了自动创建，尝试自动创建
+  await tryAutoCreateSession();
 });
 
 // 尝试自动创建会话
@@ -104,6 +106,12 @@ async function tryAutoCreateSession() {
         tabId: activeTab.id
       });
       
+      // 更新数据哈希（避免触发 checkAndRefresh 重复加载）
+      const refreshResult = await chrome.runtime.sendMessage({ action: 'getSessions' });
+      if (refreshResult && refreshResult.sessions) {
+        lastDataHash = hashSessions(refreshResult.sessions);
+      }
+      
       await loadSessions();
       showToast('已自动创建会话并记录当前页面');
     }
@@ -148,13 +156,23 @@ async function checkAndRefresh() {
   
   // 设置新的定时器，延迟 300ms 执行
   refreshTimeout = setTimeout(async () => {
-    // 通过消息获取数据，保持一致性
-    const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
-    const newHash = hashSessions(result.sessions);
-    
-    if (newHash !== lastDataHash) {
-      lastDataHash = newHash;
-      await loadSessions();
+    try {
+      // 通过消息获取数据，保持一致性
+      const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
+      if (!result) {
+        console.warn('[MindGit] checkAndRefresh: 无法获取会话数据');
+        refreshTimeout = null;
+        return;
+      }
+      
+      const newHash = hashSessions(result.sessions);
+      
+      if (newHash !== lastDataHash) {
+        lastDataHash = newHash;
+        await loadSessions();
+      }
+    } catch (e) {
+      console.error('[MindGit] checkAndRefresh 出错:', e);
     }
     refreshTimeout = null;
   }, 300);
