@@ -443,9 +443,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'switchSession') {
-    chrome.runtime.sendMessage({
-      action: 'switchSession',
-      sessionId: request.sessionId
+    chrome.storage.local.set({
+      currentSession: request.sessionId
     }).then(() => {
       sendResponse({ success: true });
     });
