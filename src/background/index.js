@@ -375,17 +375,43 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 // 记录标签页间的来源关系（不依赖于节点是否存在）
 // 结构: tabSourceMap: { [tabId]: sourceTabId }
 
+// 为指定标签页创建节点（如果尚未创建）
+async function ensureTabNode(tabId) {
+  const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
+  
+  if (tabToNode[tabId]) {
+    return tabToNode[tabId];
+  }
+  
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (tab && shouldTrackUrl(tab.url)) {
+      const nodeId = await addNodeToTree(tab.url, tab.title, tab.favIconUrl, tabId, null);
+      console.log('[mindGit] 为来源标签页创建节点:', tabId, '节点:', nodeId);
+      return nodeId;
+    }
+  } catch (e) {
+    console.log('[mindGit] 无法获取来源标签页:', tabId, e.message);
+  }
+  return null;
+}
+
 // 监听标签页创建（用于追踪新标签页的来源）
 chrome.tabs.onCreated.addListener(async (tab) => {
   if (tab.openerTabId) {
     // 这个标签页是从另一个标签页打开的
     const { tabSourceMap, tabToNode } = await chrome.storage.local.get(['tabSourceMap', 'tabToNode']);
     
-    // 记录标签页级别的来源关系（即使父标签页还没有节点记录）
+    // 记录标签页级别的来源关系
     tabSourceMap[tab.id] = tab.openerTabId;
     
-    // 如果父标签页已有节点记录，同时也记录到 tabParentMap
-    const parentNodeId = tabToNode[tab.openerTabId];
+    // 确保来源标签页有节点记录
+    let parentNodeId = tabToNode[tab.openerTabId];
+    if (!parentNodeId) {
+      parentNodeId = await ensureTabNode(tab.openerTabId);
+    }
+    
+    // 记录到 tabParentMap 供后续使用
     if (parentNodeId) {
       const { tabParentMap } = await chrome.storage.local.get(['tabParentMap']);
       tabParentMap[tab.id] = parentNodeId;
@@ -409,8 +435,13 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
   // 记录标签页级别的来源关系
   tabSourceMap[tabId] = sourceTabId;
   
-  // 如果父标签页已有节点记录，同时也记录到 tabParentMap
-  const parentNodeId = tabToNode[sourceTabId];
+  // 确保来源标签页有节点记录
+  let parentNodeId = tabToNode[sourceTabId];
+  if (!parentNodeId) {
+    parentNodeId = await ensureTabNode(sourceTabId);
+  }
+  
+  // 记录到 tabParentMap
   if (parentNodeId) {
     tabParentMap[tabId] = parentNodeId;
     console.log('[mindGit] 记录导航目标父子关系:', tabId, '父节点:', parentNodeId);
