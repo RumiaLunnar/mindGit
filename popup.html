@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>浏览脉络追踪器</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="header">
+    <h1>🌳 浏览脉络</h1>
+    <div class="header-actions">
+      <button id="refreshBtn" class="icon-btn" title="刷新">🔄</button>
+      <button id="newSessionBtn" class="icon-btn" title="新建会话">➕</button>
+      <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
+    </div>
+  </div>
+
+  <div class="session-selector">
+    <select id="sessionSelect">
+      <option value="">选择会话...</option>
+    </select>
+    <button id="deleteSessionBtn" class="icon-btn danger" title="删除当前会话">🗑️</button>
+  </div>
+
+  <div class="stats-bar" id="statsInfo">
+    💤 无活动会话
+  </div>
+
+  <div class="tree-container" id="treeContainer">
+    <div class="empty-state">
+      <div class="empty-icon">🌱</div>
+      <p>还没有浏览记录</p>
+      <p class="empty-hint">开始浏览网页，我会帮你记录跳转脉络~</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    <button id="clearAllBtn" class="text-btn danger">清空所有</button>
+    <div style="display: flex; gap: 8px;">
+      <button id="expandAllBtn" class="text-btn">全部展开</button>
+      <button id="collapseAllBtn" class="text-btn">全部折叠</button>
+    </div>
+  </div>
+
+  <!-- 设置面板 -->
+  <div class="modal" id="settingsModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>⚙️ 设置</h2>
+        <button class="close-btn" id="closeSettings">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="setting-item">
+          <label>
+            <span>最大保存会话数</span>
+            <input type="number" id="maxSessions" min="5" max="200" value="50">
+          </label>
+        </div>
+        <div class="setting-item">
+          <label>
+            <span>自动清理旧会话</span>
+            <input type="checkbox" id="autoClean" checked>
+          </label>
+        </div>
+        <div class="setting-item">
+          <label>
+            <span>显示网站图标</span>
+            <input type="checkbox" id="showFavicons" checked>
+          </label>
+        </div>
+        <div class="setting-item">
+          <label>
+            <span>树形结构默认展开</span>
+            <input type="checkbox" id="defaultExpand" checked>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveSettings" class="primary-btn">保存设置</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新建会话对话框 -->
+  <div class="modal" id="newSessionModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📝 新建会话</h2>
+        <button class="close-btn" id="closeNewSession">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label>会话名称（可选）</label>
+          <input type="text" id="newSessionName" placeholder="例如：知乎深度阅读、技术调研...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmNewSession" class="primary-btn">创建会话</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

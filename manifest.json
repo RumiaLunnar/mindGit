@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "浏览脉络追踪器",
+  "version": "1.0.0",
+  "description": "记录网页跳转关系，以树形结构展示浏览脉络，帮助你回溯浏览路径",
+  "permissions": [
+    "tabs",
+    "storage",
+    "webNavigation",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
