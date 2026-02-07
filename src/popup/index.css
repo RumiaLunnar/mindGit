@@ -355,10 +355,16 @@ body {
 /* 子节点容器 */
 .children-container {
   margin-left: 16px;
+  overflow: hidden;
+  max-height: 10000px;
+  opacity: 1;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease;
 }
 
 .children-container.collapsed {
-  display: none;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.2s ease-in, opacity 0.15s ease;
 }
 
 /* 节点内容 */
