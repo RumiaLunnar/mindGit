@@ -347,6 +347,22 @@ chrome.tabs.onCreated.addListener(async (tab) => {
   }
 });
 
+// 监听导航目标创建（捕获右键菜单搜索、链接在新标签页打开等）
+chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
+  const { sourceTabId, tabId } = details;
+  
+  console.log('[mindGit] 导航目标创建，来源标签页:', sourceTabId, '新标签页:', tabId);
+  
+  const { tabParentMap, tabToNode } = await chrome.storage.local.get(['tabParentMap', 'tabToNode']);
+  const parentNodeId = tabToNode[sourceTabId];
+  
+  if (parentNodeId) {
+    tabParentMap[tabId] = parentNodeId;
+    await chrome.storage.local.set({ tabParentMap });
+    console.log('[mindGit] 记录导航目标父子关系:', tabId, '父节点:', parentNodeId);
+  }
+});
+
 // 监听标签页更新（备用方案，处理一些特殊情况）
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   // 只在页面加载完成时处理
