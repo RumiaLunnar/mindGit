@@ -8,7 +8,11 @@ pnpm-lock.yaml
 dist/
 build/
 *.zip
+*.tar.gz
 *.crx
+
+# Release files
+RELEASE*.md
 
 # IDE
 .vscode/
