@@ -121,7 +121,10 @@ async function loadSettings() {
 async function loadSessions() {
   const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
   currentSessions = result.sessions || {};
-  currentSessionId = result.currentSession;
+  // 只有在没有当前会话时才使用后台的 currentSession
+  if (!currentSessionId) {
+    currentSessionId = result.currentSession;
+  }
   
   lastDataHash = hashSessions(currentSessions);
   
@@ -130,6 +133,11 @@ async function loadSessions() {
   
   const sortedSessions = Object.values(currentSessions)
     .sort((a, b) => b.startTime - a.startTime);
+  
+  // 如果当前会话不在列表中，清空选择
+  if (currentSessionId && !currentSessions[currentSessionId]) {
+    currentSessionId = null;
+  }
   
   for (const session of sortedSessions) {
     const option = document.createElement('option');

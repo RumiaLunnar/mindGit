@@ -235,44 +235,53 @@ body {
 /* 子节点容器 */
 .children-container {
   position: relative;
-  margin-left: 20px;
-  padding-left: 0;
+  margin-left: 16px;
 }
 
-/* 树形连接线 - 竖线 */
-.children-container::before {
+/* 每个子节点的连接线 */
+.children-container > .tree-node {
+  position: relative;
+}
+
+/* 竖线：从父节点下来 */
+.children-container > .tree-node::before {
   content: '';
   position: absolute;
   left: -10px;
-  top: 0;
-  bottom: 0;
-  width: 2px;
+  top: -2px;
+  height: 20px;
+  width: 1.5px;
   background: var(--tree-line-color);
-  border-radius: 1px;
+  opacity: 0.5;
 }
 
-/* 树形连接线 - 拐角 */
-.children-container > .tree-node::after {
+/* 横线：连接到节点 */
+.children-container > .tree-node > .node-content::before {
   content: '';
   position: absolute;
   left: -10px;
-  top: 16px;
+  top: 50%;
   width: 10px;
-  height: 2px;
+  height: 1.5px;
   background: var(--tree-line-color);
-  border-radius: 1px;
+  opacity: 0.5;
 }
 
-/* 最后一个子节点不显示向下的竖线 */
-.children-container > .tree-node:last-child::before {
+/* 中间子节点：竖线继续向下 */
+.children-container > .tree-node:not(:last-child)::after {
   content: '';
   position: absolute;
   left: -10px;
-  top: 0;
-  height: 16px;
-  width: 2px;
+  top: 18px;
+  bottom: -4px;
+  width: 1.5px;
   background: var(--tree-line-color);
-  border-radius: 1px;
+  opacity: 0.5;
+}
+
+/* 根节点没有连接线 */
+.tree-wrapper > .tree-node > .node-content::before {
+  display: none;
 }
 
 .children-container.collapsed {
