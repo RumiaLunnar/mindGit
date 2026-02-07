@@ -12,7 +12,9 @@ import { loadTree, showEmptyState } from './tree.js';
  */
 export async function loadSessions() {
   try {
+    console.log('[MindGit] loadSessions 开始');
     const result = await api.getSessions();
+    console.log('[MindGit] getSessions 返回:', result);
     
     if (!result || typeof result.sessions === 'undefined') {
       console.warn('[MindGit] 加载会话失败，保留现有数据');
@@ -22,6 +24,8 @@ export async function loadSessions() {
     // 保护性检查：防止数据异常丢失
     const existingCount = Object.keys(state.currentSessions).length;
     const newCount = Object.keys(result.sessions || {}).length;
+    console.log(`[MindGit] 现有会话: ${existingCount}, 新会话: ${newCount}`);
+    
     if (existingCount > 0 && newCount === 0) {
       console.warn('[MindGit] 检测到会话数据异常，保留现有数据');
       return false;

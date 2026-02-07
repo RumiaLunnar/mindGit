@@ -14,6 +14,9 @@ let nodeCounter = 0;
 const recentNavigations = {};
 const DEBOUNCE_TIME = 2000; // 2秒内同一URL不重复记录
 
+// 防止重复捕获的标志
+let isCapturing = false;
+
 // 生成唯一ID
 function generateSessionId() {
   return `session_${Date.now()}_${sessionCounter++}`;
@@ -73,35 +76,44 @@ self.addEventListener('activate', () => {
 
 // 捕获当前所有可记录的标签页
 async function captureCurrentTabs() {
+  // 防止重复调用
+  if (isCapturing) {
+    console.log('[mindGit] 捕获进行中，跳过');
+    return;
+  }
+  
+  isCapturing = true;
+  
   try {
     // 检查设置是否启用了自动创建会话
-    const { settings } = await chrome.storage.local.get('settings');
+    const { settings, sessions, currentSession } = await chrome.storage.local.get(['settings', 'sessions', 'currentSession']);
+    
     if (settings?.autoCreateSession === false) {
       console.log('[mindGit] 自动创建会话已禁用，跳过捕获当前页面');
+      isCapturing = false;
       return;
+    }
+
+    // 如果已有会话且有内容，不自动创建新会话
+    if (currentSession && sessions?.[currentSession]) {
+      const session = sessions[currentSession];
+      const hasNodes = Object.keys(session.allNodes || {}).length > 0;
+      if (hasNodes) {
+        console.log('[mindGit] 已有存在的会话，跳过自动创建');
+        isCapturing = false;
+        return;
+      }
     }
 
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tabs.length === 0) {
       console.log('[mindGit] 没有找到活动标签页');
+      isCapturing = false;
       return;
     }
 
     const activeTab = tabs[0];
     console.log('[mindGit] 尝试捕获当前页面:', activeTab.url);
-
-    // 检查是否已经有会话
-    const { sessions, currentSession } = await chrome.storage.local.get(['sessions', 'currentSession']);
-    
-    // 如果已有会话且有内容，不自动创建新会话
-    if (currentSession && sessions[currentSession]) {
-      const session = sessions[currentSession];
-      const hasNodes = Object.keys(session.allNodes || {}).length > 0;
-      if (hasNodes) {
-        console.log('[mindGit] 已有存在的会话，跳过自动创建');
-        return;
-      }
-    }
 
     // 创建新会话并记录当前页面
     if (shouldTrackUrl(activeTab.url)) {
@@ -114,6 +126,8 @@ async function captureCurrentTabs() {
     }
   } catch (e) {
     console.error('[mindGit] 捕获当前页面失败:', e);
+  } finally {
+    isCapturing = false;
   }
 }
 
@@ -464,9 +478,17 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'getSessions') {
     chrome.storage.local.get(['sessions', 'currentSession']).then(result => {
+      // 保证返回有效的数据结构
       sendResponse({
-        sessions: result.sessions,
-        currentSession: result.currentSession
+        sessions: result.sessions || {},
+        currentSession: result.currentSession || null
+      });
+    }).catch(err => {
+      console.error('[mindGit] getSessions 错误:', err);
+      sendResponse({
+        sessions: {},
+        currentSession: null,
+        error: err.message
       });
     });
     return true;
@@ -660,23 +682,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 // 定期检查并清理旧会话
 setInterval(async () => {
-  const { sessions, settings } = await chrome.storage.local.get(['sessions', 'settings']);
-  
-  if (!settings.autoCleanOldSessions) return;
-  
-  const sessionIds = Object.keys(sessions);
-  if (sessionIds.length > settings.maxSessions) {
-    const sortedSessions = sessionIds
-      .map(id => ({ id, startTime: sessions[id].startTime }))
-      .sort((a, b) => b.startTime - a.startTime);
+  try {
+    const { sessions, settings } = await chrome.storage.local.get(['sessions', 'settings']);
     
-    const toDelete = sortedSessions.slice(settings.maxSessions);
-    for (const s of toDelete) {
-      delete sessions[s.id];
+    // 保护性检查：确保设置有效
+    const maxSessions = Math.max(5, parseInt(settings?.maxSessions) || 50);
+    const autoClean = settings?.autoCleanOldSessions !== false;
+    
+    if (!autoClean) return;
+    
+    const sessionIds = Object.keys(sessions || {});
+    if (sessionIds.length > maxSessions) {
+      const sortedSessions = sessionIds
+        .map(id => ({ id, startTime: sessions[id].startTime }))
+        .sort((a, b) => b.startTime - a.startTime);
+      
+      const toDelete = sortedSessions.slice(maxSessions);
+      for (const s of toDelete) {
+        delete sessions[s.id];
+      }
+      
+      await chrome.storage.local.set({ sessions });
+      console.log('[mindGit] 清理了', toDelete.length, '个旧会话');
     }
-    
-    await chrome.storage.local.set({ sessions });
-    console.log('[mindGit] 清理了', toDelete.length, '个旧会话');
+  } catch (e) {
+    console.error('[mindGit] 清理会话出错:', e);
   }
 }, 60000);
 
