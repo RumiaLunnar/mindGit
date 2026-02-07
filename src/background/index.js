@@ -50,11 +50,72 @@ chrome.runtime.onInstalled.addListener(() => {
       maxNodesPerSession: 500,
       autoCleanOldSessions: true,
       showFavicons: true,
-      defaultExpand: true
+      defaultExpand: true,
+      autoCreateSession: true
     }
   });
   console.log('[mindGit] 已初始化');
+  // 扩展安装时尝试记录当前页面
+  captureCurrentTabs();
 });
+
+// Chrome 启动时也尝试记录当前页面
+chrome.runtime.onStartup.addListener(() => {
+  console.log('[mindGit] Chrome 启动，尝试记录当前页面');
+  captureCurrentTabs();
+});
+
+// Service Worker 激活时尝试记录当前页面
+self.addEventListener('activate', () => {
+  console.log('[mindGit] Service Worker 激活');
+  captureCurrentTabs();
+});
+
+// 捕获当前所有可记录的标签页
+async function captureCurrentTabs() {
+  try {
+    // 检查设置是否启用了自动创建会话
+    const { settings } = await chrome.storage.local.get('settings');
+    if (settings?.autoCreateSession === false) {
+      console.log('[mindGit] 自动创建会话已禁用，跳过捕获当前页面');
+      return;
+    }
+
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) {
+      console.log('[mindGit] 没有找到活动标签页');
+      return;
+    }
+
+    const activeTab = tabs[0];
+    console.log('[mindGit] 尝试捕获当前页面:', activeTab.url);
+
+    // 检查是否已经有会话
+    const { sessions, currentSession } = await chrome.storage.local.get(['sessions', 'currentSession']);
+    
+    // 如果已有会话且有内容，不自动创建新会话
+    if (currentSession && sessions[currentSession]) {
+      const session = sessions[currentSession];
+      const hasNodes = Object.keys(session.allNodes || {}).length > 0;
+      if (hasNodes) {
+        console.log('[mindGit] 已有存在的会话，跳过自动创建');
+        return;
+      }
+    }
+
+    // 创建新会话并记录当前页面
+    if (shouldTrackUrl(activeTab.url)) {
+      const nodeId = await addNodeToTree(activeTab.url, activeTab.title, activeTab.favIconUrl, activeTab.id, null);
+      if (nodeId) {
+        console.log('[mindGit] 已自动记录当前页面:', activeTab.title);
+      }
+    } else {
+      console.log('[mindGit] 当前页面不需要记录:', activeTab.url);
+    }
+  } catch (e) {
+    console.error('[mindGit] 捕获当前页面失败:', e);
+  }
+}
 
 // 检查URL是否应该被记录
 function shouldTrackUrl(url) {
@@ -499,6 +560,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         currentSession: newSessionId
       }).then(() => {
         sendResponse({ success: true, sessionId: newSessionId });
+      });
+    });
+    return true;
+  }
+  
+  if (request.action === 'addNode') {
+    // 为特定会话添加节点
+    chrome.storage.local.get(['sessions', 'tabToNode']).then(result => {
+      const sessions = result.sessions;
+      const session = sessions[request.sessionId];
+      
+      if (!session) {
+        sendResponse({ success: false, error: '会话不存在' });
+        return;
+      }
+      
+      const { url, title, favIconUrl, tabId, parentNodeId } = request;
+      
+      // 创建新节点
+      const node = createNode(url, title, favIconUrl, parentNodeId);
+      
+      if (parentNodeId && session.allNodes[parentNodeId]) {
+        session.allNodes[parentNodeId].children.push(node.id);
+      } else {
+        session.rootNodes.push(node.id);
+      }
+      
+      session.allNodes[node.id] = node;
+      
+      const tabToNode = result.tabToNode || {};
+      tabToNode[tabId] = node.id;
+      
+      // 更新会话名称（如果是第一个根节点）
+      if (session.rootNodes.length === 1 && title && session.name.startsWith('浏览会话')) {
+        session.name = title.substring(0, 30) || session.name;
+      }
+      
+      chrome.storage.local.set({ sessions, tabToNode }).then(() => {
+        sendResponse({ success: true, nodeId: node.id });
       });
     });
     return true;

@@ -7,13 +7,13 @@ let currentSettings = {};
 let expandedNodes = new Set();
 let lastDataHash = null;
 let isDarkMode = false;
+let refreshTimeout = null;
 
 // DOM 元素
 const elements = {
   themeBtn: document.getElementById('themeBtn'),
-  sessionSelect: document.getElementById('sessionSelect'),
-  renameSessionBtn: document.getElementById('renameSessionBtn'),
-  deleteSessionBtn: document.getElementById('deleteSessionBtn'),
+  sessionList: document.getElementById('sessionList'),
+  sessionCount: document.getElementById('sessionCount'),
   treeContainer: document.getElementById('treeContainer'),
   statsInfo: document.getElementById('statsInfo'),
   refreshBtn: document.getElementById('refreshBtn'),
@@ -34,6 +34,7 @@ const elements = {
   autoClean: document.getElementById('autoClean'),
   showFavicons: document.getElementById('showFavicons'),
   defaultExpand: document.getElementById('defaultExpand'),
+  autoCreateSession: document.getElementById('autoCreateSession'),
   colorTheme: document.getElementById('colorTheme')
 };
 
@@ -44,6 +45,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadSessions();
   setupEventListeners();
   
+  // 如果没有会话且启用了自动创建，尝试自动创建
+  await tryAutoCreateSession();
+  
   // 监听存储变化
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.sessions) {
@@ -51,6 +55,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 });
+
+// 尝试自动创建会话
+async function tryAutoCreateSession() {
+  // 检查设置
+  if (currentSettings.autoCreateSession === false) {
+    return;
+  }
+  
+  // 检查是否已有会话
+  const sessionCount = Object.keys(currentSessions).length;
+  if (sessionCount > 0) {
+    return; // 已有会话，不需要自动创建
+  }
+  
+  try {
+    // 获取当前活动标签页
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length === 0) return;
+    
+    const activeTab = tabs[0];
+    
+    // 检查URL是否可记录
+    const url = activeTab.url;
+    if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://') || 
+        url.startsWith('devtools://') || url.startsWith('about:')) {
+      return;
+    }
+    
+    console.log('[MindGit] 自动创建会话并记录当前页面:', activeTab.title);
+    
+    // 创建新会话
+    const result = await chrome.runtime.sendMessage({ 
+      action: 'createNewSession', 
+      name: activeTab.title?.substring(0, 30) || '新会话'
+    });
+    
+    if (result.success) {
+      currentSessionId = result.sessionId;
+      
+      // 添加当前页面到会话
+      await chrome.runtime.sendMessage({
+        action: 'addNode',
+        sessionId: result.sessionId,
+        url: activeTab.url,
+        title: activeTab.title,
+        favIconUrl: activeTab.favIconUrl,
+        tabId: activeTab.id
+      });
+      
+      await loadSessions();
+      showToast('已自动创建会话并记录当前页面');
+    }
+  } catch (e) {
+    console.error('[MindGit] 自动创建会话失败:', e);
+  }
+}
 
 // 加载主题
 async function loadTheme() {
@@ -79,15 +139,25 @@ async function toggleTheme() {
   applyTheme();
 }
 
-// 检查数据是否有变化
+// 检查数据是否有变化（带防抖）
 async function checkAndRefresh() {
-  const result = await chrome.storage.local.get(['sessions', 'currentSession']);
-  const newHash = hashSessions(result.sessions);
-  
-  if (newHash !== lastDataHash) {
-    lastDataHash = newHash;
-    await loadSessions();
+  // 清除之前的定时器
+  if (refreshTimeout) {
+    clearTimeout(refreshTimeout);
   }
+  
+  // 设置新的定时器，延迟 300ms 执行
+  refreshTimeout = setTimeout(async () => {
+    // 通过消息获取数据，保持一致性
+    const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
+    const newHash = hashSessions(result.sessions);
+    
+    if (newHash !== lastDataHash) {
+      lastDataHash = newHash;
+      await loadSessions();
+    }
+    refreshTimeout = null;
+  }, 300);
 }
 
 // 简单的哈希函数
@@ -111,6 +181,7 @@ async function loadSettings() {
     autoCleanOldSessions: true,
     showFavicons: true,
     defaultExpand: true,
+    autoCreateSession: true,
     colorTheme: 'default'
   };
   
@@ -118,6 +189,7 @@ async function loadSettings() {
   elements.autoClean.checked = currentSettings.autoCleanOldSessions;
   elements.showFavicons.checked = currentSettings.showFavicons !== false;
   elements.defaultExpand.checked = currentSettings.defaultExpand !== false;
+  elements.autoCreateSession.checked = currentSettings.autoCreateSession !== false;
   elements.colorTheme.value = currentSettings.colorTheme || 'default';
   
   // 应用颜色主题
@@ -133,43 +205,203 @@ async function loadSettings() {
 
 // 加载会话列表
 async function loadSessions() {
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
+    
+    // 保护性检查：如果返回的数据无效，保留现有数据
+    if (!result || typeof result.sessions === 'undefined') {
+      console.warn('[MindGit] 加载会话失败，保留现有数据');
+      return;
+    }
+    
+    // 保护性检查：如果当前有会话但返回的是空数据，不覆盖
+    const existingSessionCount = Object.keys(currentSessions).length;
+    const newSessionCount = Object.keys(result.sessions || {}).length;
+    if (existingSessionCount > 0 && newSessionCount === 0) {
+      console.warn('[MindGit] 检测到会话数据异常丢失，保留现有数据');
+      return;
+    }
+    
+    currentSessions = result.sessions || {};
+    // 只有在没有当前会话时才使用后台的 currentSession
+    if (!currentSessionId) {
+      currentSessionId = result.currentSession;
+    }
+    
+    lastDataHash = hashSessions(currentSessions);
+    
+    const sortedSessions = Object.values(currentSessions)
+      .sort((a, b) => b.startTime - a.startTime);
+    
+    // 如果当前会话不在列表中，清空选择
+    if (currentSessionId && !currentSessions[currentSessionId]) {
+      currentSessionId = null;
+    }
+    
+    // 渲染会话列表
+    renderSessionList(sortedSessions);
+    
+    if (currentSessionId && currentSessions[currentSessionId]) {
+      await loadTree(currentSessionId);
+    } else {
+      showEmptyState();
+    }
+    
+    await updateStats();
+  } catch (e) {
+    console.error('[MindGit] 加载会话出错:', e);
+  }
+}
+
+// 渲染会话列表
+function renderSessionList(sessions) {
+  const listContainer = elements.sessionList;
+  const countElement = elements.sessionCount;
+  
+  countElement.textContent = `${sessions.length} 个`;
+  listContainer.innerHTML = '';
+  
+  if (sessions.length === 0) {
+    // 显示空状态（保留小树苗和提示文字）
+    listContainer.innerHTML = `
+      <div class="session-list-empty">
+        <div class="session-list-empty-icon">🌱</div>
+        <div class="session-list-empty-text">还没有浏览记录</div>
+        <div class="session-list-empty-hint">开始浏览网页，我会帮你记录跳转脉络~</div>
+      </div>
+    `;
+    return;
+  }
+  
+  for (const session of sessions) {
+    const sessionItem = createSessionItem(session, session.id === currentSessionId);
+    listContainer.appendChild(sessionItem);
+  }
+}
+
+// 创建会话项元素
+function createSessionItem(session, isActive) {
+  const item = document.createElement('div');
+  item.className = `session-item ${isActive ? 'active' : ''}`;
+  item.dataset.sessionId = session.id;
+  
+  const nodeCount = Object.keys(session.allNodes || {}).length;
+  const rootCount = (session.rootNodes || []).length;
+  const dateStr = new Date(session.startTime).toLocaleString('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  item.innerHTML = `
+    <span class="session-item-icon">${isActive ? '👆' : '📄'}</span>
+    <div class="session-item-info">
+      <div class="session-item-name">${escapeHtml(session.name)}</div>
+      <div class="session-item-meta">${rootCount} 个起点 · ${nodeCount} 个页面 · ${dateStr}</div>
+    </div>
+    <div class="session-item-actions">
+      <button class="session-item-btn rename" title="重命名">✏️</button>
+      <button class="session-item-btn delete" title="删除">🗑️</button>
+    </div>
+  `;
+  
+  // 点击整个项切换会话
+  item.addEventListener('click', (e) => {
+    // 如果点击的是按钮，不触发切换
+    if (e.target.closest('.session-item-btn')) return;
+    switchSession(session.id);
+  });
+  
+  // 重命名按钮
+  const renameBtn = item.querySelector('.session-item-btn.rename');
+  renameBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renameSession(session.id, session.name);
+  });
+  
+  // 删除按钮
+  const deleteBtn = item.querySelector('.session-item-btn.delete');
+  deleteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    deleteSession(session.id);
+  });
+  
+  return item;
+}
+
+// HTML 转义
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// 切换会话
+async function switchSession(sessionId) {
+  if (sessionId === currentSessionId) return;
+  
+  currentSessionId = sessionId;
+  expandedNodes.clear();
+  
+  // 更新系统存储
+  await chrome.runtime.sendMessage({ 
+    action: 'switchSession', 
+    sessionId 
+  });
+  
+  // 重新加载
   const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
   currentSessions = result.sessions || {};
-  // 只有在没有当前会话时才使用后台的 currentSession
-  if (!currentSessionId) {
-    currentSessionId = result.currentSession;
-  }
   
-  lastDataHash = hashSessions(currentSessions);
-  
-  const select = elements.sessionSelect;
-  select.innerHTML = '<option value="">选择会话...</option>';
-  
+  // 更新列表显示
   const sortedSessions = Object.values(currentSessions)
     .sort((a, b) => b.startTime - a.startTime);
+  renderSessionList(sortedSessions);
   
-  // 如果当前会话不在列表中，清空选择
-  if (currentSessionId && !currentSessions[currentSessionId]) {
-    currentSessionId = null;
-  }
-  
-  for (const session of sortedSessions) {
-    const option = document.createElement('option');
-    option.value = session.id;
-    option.textContent = session.name;
-    if (session.id === currentSessionId) {
-      option.selected = true;
-    }
-    select.appendChild(option);
-  }
-  
-  if (currentSessionId && currentSessions[currentSessionId]) {
-    await loadTree(currentSessionId);
-  } else {
-    showEmptyState();
-  }
-  
+  // 加载对应的树
+  await loadTree(sessionId);
   await updateStats();
+}
+
+// 重命名会话
+async function renameSession(sessionId, currentName) {
+  const newName = prompt('请输入新会话名称:', currentName || '');
+  
+  if (newName && newName.trim()) {
+    const result = await chrome.runtime.sendMessage({
+      action: 'renameSession',
+      sessionId: sessionId,
+      name: newName.trim()
+    });
+    
+    if (result.success) {
+      showToast('会话已重命名');
+      await loadSessions();
+    } else {
+      showToast('重命名失败');
+    }
+  }
+}
+
+// 删除会话
+async function deleteSession(sessionId) {
+  if (!confirm('确定要删除这个会话吗？此操作不可撤销。')) {
+    return;
+  }
+  
+  await chrome.runtime.sendMessage({ 
+    action: 'deleteSession', 
+    sessionId: sessionId 
+  });
+  
+  if (currentSessionId === sessionId) {
+    currentSessionId = null;
+    expandedNodes.clear();
+  }
+  
+  await loadSessions();
+  showToast('会话已删除');
 }
 
 // 加载树形结构
@@ -197,9 +429,7 @@ async function loadTree(sessionId) {
     const nodeId = el.closest('.tree-node')?.dataset.nodeId;
     if (nodeId) currentExpanded.add(nodeId);
   });
-  if (currentExpanded.size > 0) {
-    expandedNodes = currentExpanded;
-  }
+  expandedNodes = currentExpanded;
   
   const treeHtml = document.createElement('div');
   treeHtml.className = 'tree-wrapper';
@@ -298,7 +528,9 @@ function createTreeNode(node, session, depth) {
   if (hasChildren) {
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'children-container';
-    if (!isExpanded) childrenContainer.classList.add('collapsed');
+    if (!isExpanded) {
+      childrenContainer.classList.add('collapsed');
+    }
     
     for (const childId of node.children) {
       const childNode = session.allNodes[childId];
@@ -434,78 +666,6 @@ function setupEventListeners() {
     showToast('已刷新');
   });
   
-  // 会话选择
-  elements.sessionSelect.addEventListener('change', async (e) => {
-    const sessionId = e.target.value;
-    if (sessionId) {
-      currentSessionId = sessionId;
-      expandedNodes.clear();
-      // 先清空显示
-      elements.treeContainer.innerHTML = '';
-      // 切换会话
-      await chrome.runtime.sendMessage({ 
-        action: 'switchSession', 
-        sessionId 
-      });
-      // 重新加载所有数据
-      const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
-      currentSessions = result.sessions || {};
-      // 加载树形
-      await loadTree(sessionId);
-      await updateStats();
-    } else {
-      currentSessionId = null;
-      expandedNodes.clear();
-      elements.treeContainer.innerHTML = '';
-      showEmptyState();
-      await updateStats();
-    }
-  });
-  
-  // 重命名会话
-  elements.renameSessionBtn.addEventListener('click', async () => {
-    if (!currentSessionId) {
-      showToast('请先选择会话');
-      return;
-    }
-    
-    const session = currentSessions[currentSessionId];
-    const newName = prompt('请输入新会话名称:', session?.name || '');
-    
-    if (newName && newName.trim()) {
-      const result = await chrome.runtime.sendMessage({
-        action: 'renameSession',
-        sessionId: currentSessionId,
-        name: newName.trim()
-      });
-      
-      if (result.success) {
-        showToast('会话已重命名');
-        await loadSessions();
-      } else {
-        showToast('重命名失败');
-      }
-    }
-  });
-  
-  // 删除会话
-  elements.deleteSessionBtn.addEventListener('click', async () => {
-    if (!currentSessionId) {
-      showToast('请先选择会话');
-      return;
-    }
-    
-    if (confirm('确定要删除这个会话吗？此操作不可撤销。')) {
-      await chrome.runtime.sendMessage({ 
-        action: 'deleteSession', 
-        sessionId: currentSessionId 
-      });
-      currentSessionId = null;
-      await loadSessions();
-      showToast('会话已删除');
-    }
-  });
-  
   // 新建会话
   elements.newSessionBtn.addEventListener('click', () => {
     elements.newSessionModal.classList.add('active');
@@ -525,8 +685,8 @@ function setupEventListeners() {
     
     if (result.success) {
       expandedNodes.clear();
+      currentSessionId = result.sessionId;
       await loadSessions();
-      elements.sessionSelect.value = result.sessionId;
       await loadTree(result.sessionId);
       elements.newSessionModal.classList.remove('active');
       elements.newSessionName.value = '';
@@ -553,6 +713,7 @@ function setupEventListeners() {
       autoCleanOldSessions: elements.autoClean.checked,
       showFavicons: elements.showFavicons.checked,
       defaultExpand: elements.defaultExpand.checked,
+      autoCreateSession: elements.autoCreateSession.checked,
       colorTheme: newTheme
     };
     

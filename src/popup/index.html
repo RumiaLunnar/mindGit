@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mindGit</title>
+  <title>MindGit</title>
   <link rel="stylesheet" href="index.css">
 </head>
 <body>
   <div class="header">
-    <h1>🌳 mindGit</h1>
+    <h1>🌳 MindGit</h1>
     <div class="header-actions">
       <button id="themeBtn" class="icon-btn" title="切换主题">🌙</button>
       <button id="refreshBtn" class="icon-btn" title="刷新">🔄</button>
@@ -17,12 +17,15 @@
     </div>
   </div>
 
-  <div class="session-selector">
-    <select id="sessionSelect">
-      <option value="">选择会话...</option>
-    </select>
-    <button id="renameSessionBtn" class="icon-btn" title="重命名会话">✏️</button>
-    <button id="deleteSessionBtn" class="icon-btn danger" title="删除当前会话">🗑️</button>
+  <!-- 会话列表 -->
+  <div class="session-list-container" id="sessionListContainer">
+    <div class="session-list-header">
+      <span class="session-list-title">📁 会话列表</span>
+      <span class="session-list-count" id="sessionCount">0 个</span>
+    </div>
+    <div class="session-list" id="sessionList">
+      <!-- 会话项目将在这里动态生成 -->
+    </div>
   </div>
 
   <div class="stats-bar" id="statsInfo">
@@ -75,6 +78,12 @@
           <label>
             <span>树形结构默认展开</span>
             <input type="checkbox" id="defaultExpand" checked>
+          </label>
+        </div>
+        <div class="setting-item">
+          <label>
+            <span>自动创建会话并记录当前页面</span>
+            <input type="checkbox" id="autoCreateSession" checked>
           </label>
         </div>
         <div class="setting-item">
