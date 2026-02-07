@@ -33,7 +33,8 @@ const elements = {
   maxSessions: document.getElementById('maxSessions'),
   autoClean: document.getElementById('autoClean'),
   showFavicons: document.getElementById('showFavicons'),
-  defaultExpand: document.getElementById('defaultExpand')
+  defaultExpand: document.getElementById('defaultExpand'),
+  colorTheme: document.getElementById('colorTheme')
 };
 
 // 初始化
@@ -109,13 +110,25 @@ async function loadSettings() {
     maxNodesPerSession: 500,
     autoCleanOldSessions: true,
     showFavicons: true,
-    defaultExpand: true
+    defaultExpand: true,
+    colorTheme: 'default'
   };
   
   elements.maxSessions.value = currentSettings.maxSessions;
   elements.autoClean.checked = currentSettings.autoCleanOldSessions;
   elements.showFavicons.checked = currentSettings.showFavicons !== false;
   elements.defaultExpand.checked = currentSettings.defaultExpand !== false;
+  elements.colorTheme.value = currentSettings.colorTheme || 'default';
+  
+  // 应用颜色主题
+  const theme = currentSettings.colorTheme || 'default';
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    isDarkMode = true;
+    applyTheme();
+  } else if (theme !== 'default') {
+    document.documentElement.setAttribute('data-theme', theme);
+  }
 }
 
 // 加载会话列表
@@ -531,15 +544,29 @@ function setupEventListeners() {
   });
   
   elements.saveSettings.addEventListener('click', async () => {
+    const newTheme = elements.colorTheme.value;
+    const oldTheme = currentSettings.colorTheme;
+    
     currentSettings = {
       ...currentSettings,
       maxSessions: parseInt(elements.maxSessions.value) || 50,
       autoCleanOldSessions: elements.autoClean.checked,
       showFavicons: elements.showFavicons.checked,
-      defaultExpand: elements.defaultExpand.checked
+      defaultExpand: elements.defaultExpand.checked,
+      colorTheme: newTheme
     };
     
     await chrome.storage.local.set({ settings: currentSettings });
+    
+    // 应用新主题
+    if (newTheme === 'dark') {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    } else if (newTheme !== 'default') {
+      document.documentElement.setAttribute('data-theme', newTheme);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    
     elements.settingsModal.classList.remove('active');
     showToast('设置已保存');
     

@@ -26,6 +26,12 @@
   --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
   --input-bg: #ffffff;
   --modal-overlay: rgba(0, 0, 0, 0.5);
+  
+  /* 层级颜色 - 默认蓝色系 */
+  --depth-0-color: #4a90d9;
+  --depth-1-color: #64b5f6;
+  --depth-2-color: #90caf9;
+  --depth-3-color: #bbdefb;
 }
 
 /* 暗色主题 */
@@ -48,6 +54,120 @@
   --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
   --input-bg: #2d333b;
   --modal-overlay: rgba(0, 0, 0, 0.7);
+  
+  /* 层级颜色 */
+  --depth-0-color: #5c9ce6;
+  --depth-1-color: #7fb3d5;
+  --depth-2-color: #a8d0e6;
+  --depth-3-color: #c5e0f0;
+}
+
+/* 莫兰迪配色 */
+[data-theme="morandi"] {
+  --primary-color: #9ca8b8;
+  --primary-hover: #8a96a6;
+  --bg-color: #f2f0ed;
+  --card-bg: #faf9f7;
+  --text-primary: #4a4a4a;
+  --text-secondary: #7a7a7a;
+  --text-muted: #a0a0a0;
+  --border-color: #e0ddd8;
+  --hover-bg: #ebe8e3;
+  --active-bg: #e5e2dc;
+  --danger-color: #c9a9a9;
+  --success-color: #a9b8a9;
+  --tree-line-color: #d5d2cd;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --input-bg: #faf9f7;
+  --modal-overlay: rgba(0, 0, 0, 0.45);
+  
+  /* 层级颜色 - 莫兰迪色系 */
+  --depth-0-color: #9ca8b8;  /* 雾霾蓝 */
+  --depth-1-color: #c9b8b3;  /* 灰粉 */
+  --depth-2-color: #a8b5a0;  /* 灰绿 */
+  --depth-3-color: #d4c4a8;  /* 灰黄 */
+}
+
+/* 森林配色 */
+[data-theme="forest"] {
+  --primary-color: #6b9080;
+  --primary-hover: #5a7d6e;
+  --bg-color: #f1f4f1;
+  --card-bg: #f7f9f7;
+  --text-primary: #2d3e36;
+  --text-secondary: #5a6b63;
+  --text-muted: #8a9a92;
+  --border-color: #d8e0d8;
+  --hover-bg: #e8efe8;
+  --active-bg: #e0ebe0;
+  --danger-color: #c98b8b;
+  --success-color: #6b9080;
+  --tree-line-color: #c8d5c8;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --input-bg: #f7f9f7;
+  --modal-overlay: rgba(0, 0, 0, 0.45);
+  
+  /* 层级颜色 - 森林色系 */
+  --depth-0-color: #6b9080;
+  --depth-1-color: #7d9b84;
+  --depth-2-color: #a4b89c;
+  --depth-3-color: #c4d4b0;
+}
+
+/* 海洋配色 */
+[data-theme="ocean"] {
+  --primary-color: #5d8aa8;
+  --primary-hover: #4a7593;
+  --bg-color: #f0f4f7;
+  --card-bg: #f7fafc;
+  --text-primary: #2a3a47;
+  --text-secondary: #5a6a77;
+  --text-muted: #8a9aa7;
+  --border-color: #d8e0e8;
+  --hover-bg: #e8f0f5;
+  --active-bg: #e0ecf4;
+  --danger-color: #b88a8a;
+  --success-color: #6b8a7a;
+  --tree-line-color: #c8d8e5;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --input-bg: #f7fafc;
+  --modal-overlay: rgba(0, 0, 0, 0.45);
+  
+  /* 层级颜色 - 海洋色系 */
+  --depth-0-color: #5d8aa8;
+  --depth-1-color: #7da3b8;
+  --depth-2-color: #9ebfcd;
+  --depth-3-color: #bfd4df;
+}
+
+/* 暖阳配色 */
+[data-theme="warm"] {
+  --primary-color: #c9a87c;
+  --primary-hover: #b8986c;
+  --bg-color: #f7f4f0;
+  --card-bg: #faf8f5;
+  --text-primary: #4a4035;
+  --text-secondary: #7a7065;
+  --text-muted: #a09085;
+  --border-color: #e8e0d8;
+  --hover-bg: #f0ebe5;
+  --active-bg: #ebe5dd;
+  --danger-color: #c98b8b;
+  --success-color: #8ab89c;
+  --tree-line-color: #e5ddd5;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --input-bg: #faf8f5;
+  --modal-overlay: rgba(0, 0, 0, 0.45);
+  
+  /* 层级颜色 - 暖阳色系 */
+  --depth-0-color: #c9a87c;
+  --depth-1-color: #d4b896;
+  --depth-2-color: #e0cbb3;
+  --depth-3-color: #ebdfd0;
 }
 
 body {
@@ -371,36 +491,21 @@ body {
 
 /* 层级指示器 - 不同层级有不同颜色 */
 /* 深度颜色指示 - 使用左边框 */
+/* 层级颜色 - 使用 CSS 变量 */
 .depth-0 .node-content {
-  border-left: 4px solid var(--primary-color);
+  border-left: 4px solid var(--depth-0-color, var(--primary-color));
 }
 
 .depth-1 .node-content {
-  border-left: 4px solid #64b5f6;
+  border-left: 4px solid var(--depth-1-color, #64b5f6);
 }
 
 .depth-2 .node-content {
-  border-left: 4px solid #90caf9;
+  border-left: 4px solid var(--depth-2-color, #90caf9);
 }
 
 .depth-3 .node-content {
-  border-left: 4px solid #bbdefb;
-}
-
-[data-theme="dark"] .depth-0 .node-content {
-  border-left-color: var(--primary-color);
-}
-
-[data-theme="dark"] .depth-1 .node-content {
-  border-left-color: #3d8bd8;
-}
-
-[data-theme="dark"] .depth-2 .node-content {
-  border-left-color: #2d6da8;
-}
-
-[data-theme="dark"] .depth-3 .node-content {
-  border-left-color: #1e4a73;
+  border-left: 4px solid var(--depth-3-color, #bbdefb);
 }
 
 /* 根节点特殊样式 */
