@@ -281,9 +281,20 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       
       if (isSearch) {
         // 如果是从当前页搜索，保持当前节点作为父节点
-        const currentNodeId = tabToNode[details.tabId];
-        if (currentNodeId) {
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, currentNodeId);
+        // 先尝试获取当前标签页的节点（当前页搜索）
+        let parentNodeId = tabToNode[details.tabId];
+        
+        // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取（新标签页搜索）
+        if (!parentNodeId && tabParentMap[details.tabId]) {
+          parentNodeId = tabParentMap[details.tabId];
+          console.log('[mindGit] 搜索新标签页，使用记录的父节点:', parentNodeId);
+          // 清理已使用的映射
+          delete tabParentMap[details.tabId];
+          await chrome.storage.local.set({ tabParentMap });
+        }
+        
+        if (parentNodeId) {
+          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
         } else {
           await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
         }
@@ -292,16 +303,25 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
       }
     } else {
-      // 其他类型（如 start_page, auto_bookmark 等）
-      const currentNodeId = tabToNode[details.tabId];
+      // 其他类型（如 start_page, auto_bookmark, form_submit 等）
+      let parentNodeId = tabToNode[details.tabId];
       
-      if (currentNodeId) {
+      // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取（新标签页打开）
+      if (!parentNodeId && tabParentMap[details.tabId]) {
+        parentNodeId = tabParentMap[details.tabId];
+        console.log('[mindGit] 其他类型新标签页，使用记录的父节点:', parentNodeId);
+        // 清理已使用的映射
+        delete tabParentMap[details.tabId];
+        await chrome.storage.local.set({ tabParentMap });
+      }
+      
+      if (parentNodeId) {
         const { sessions, sessionId } = await getOrCreateSession();
         const session = sessions[sessionId];
-        const currentNode = session.allNodes[currentNodeId];
+        const currentNode = session.allNodes[parentNodeId];
         
         if (currentNode && currentNode.url !== details.url) {
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, currentNodeId);
+          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
         }
       } else {
         await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
