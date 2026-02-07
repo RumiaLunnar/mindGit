@@ -8,13 +8,30 @@ import * as sessionManager from './sessionManager.js';
 import { setupEventListeners } from './events.js';
 
 /**
+ * 诊断工具：输出当前状态
+ */
+function diagnose() {
+  console.log('[MindGit 诊断] 当前状态:', {
+    currentSessionId: state.currentSessionId,
+    sessionCount: Object.keys(state.currentSessions).length,
+    sessions: state.currentSessions,
+    lastDataHash: state.lastDataHash,
+    settings: state.currentSettings
+  });
+}
+
+/**
  * 初始化应用
  */
 async function init() {
-  console.log('[MindGit] 初始化开始');
+  console.log('[MindGit] ========== 初始化开始 ==========');
   
   // 初始化 DOM 元素引用
   initElements();
+  
+  // 诊断：查看 storage 中的原始数据
+  const rawData = await api.getStorage(['sessions', 'currentSession', 'settings']);
+  console.log('[MindGit] Storage 原始数据:', rawData);
   
   // 加载主题
   await theme.loadTheme();
@@ -23,12 +40,16 @@ async function init() {
   await settings.loadSettings();
   
   // 监听存储变化（在加载数据前注册）
-  api.onStorageChanged(() => {
+  api.onStorageChanged((changes) => {
+    console.log('[MindGit] 检测到存储变化:', changes);
     sessionManager.checkAndRefresh();
   });
   
   // 加载会话列表
   await sessionManager.loadSessions();
+  
+  // 诊断
+  diagnose();
   
   // 设置事件监听
   setupEventListeners();
@@ -36,7 +57,10 @@ async function init() {
   // 尝试自动创建会话
   await sessionManager.tryAutoCreateSession();
   
-  console.log('[MindGit] 初始化完成');
+  // 将诊断函数暴露到全局，方便在控制台调用
+  window.mindGitDiagnose = diagnose;
+  
+  console.log('[MindGit] ========== 初始化完成 ==========');
 }
 
 // DOM 加载完成后初始化
