@@ -1,4 +1,4 @@
-/* 浏览脉络追踪器 - 弹出窗口样式 */
+/* mindGit - 浏览脉络追踪器 */
 
 * {
   margin: 0;
@@ -6,6 +6,7 @@
   box-sizing: border-box;
 }
 
+/* 亮色主题（默认） */
 :root {
   --primary-color: #4a90d9;
   --primary-hover: #357abd;
@@ -23,6 +24,30 @@
   --tree-line-active: #4a90d9;
   --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.12);
+  --input-bg: #ffffff;
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+}
+
+/* 暗色主题 */
+[data-theme="dark"] {
+  --primary-color: #5c9ce6;
+  --primary-hover: #4a8bd4;
+  --bg-color: #1a1d23;
+  --card-bg: #252830;
+  --text-primary: #e4e6eb;
+  --text-secondary: #a8abb3;
+  --text-muted: #6b7280;
+  --border-color: #3d4450;
+  --hover-bg: #2d333b;
+  --active-bg: #1e3a5f;
+  --danger-color: #ef4444;
+  --success-color: #22c55e;
+  --tree-line-color: #4b5563;
+  --tree-line-active: #5c9ce6;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --input-bg: #2d333b;
+  --modal-overlay: rgba(0, 0, 0, 0.7);
 }
 
 body {
@@ -34,6 +59,7 @@ body {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* 头部 */
@@ -67,6 +93,7 @@ body {
   border: none;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.15);
+  color: white;
   cursor: pointer;
   font-size: 14px;
   display: flex;
@@ -101,6 +128,7 @@ body {
   display: flex;
   gap: 10px;
   flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .session-selector select {
@@ -109,10 +137,10 @@ body {
   border: 1.5px solid var(--border-color);
   border-radius: 10px;
   font-size: 14px;
-  background: white;
+  background: var(--input-bg);
+  color: var(--text-primary);
   cursor: pointer;
   transition: all 0.2s;
-  color: var(--text-primary);
 }
 
 .session-selector select:hover {
@@ -128,7 +156,7 @@ body {
 /* 统计栏 */
 .stats-bar {
   padding: 10px 20px;
-  background: linear-gradient(to right, #f8fafc, #edf2f7);
+  background: linear-gradient(to right, var(--bg-color), var(--hover-bg));
   border-bottom: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-secondary);
@@ -136,6 +164,7 @@ body {
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .stats-bar::before {
@@ -161,12 +190,12 @@ body {
 }
 
 .tree-container::-webkit-scrollbar-thumb {
-  background: #c5d0dc;
+  background: var(--border-color);
   border-radius: 3px;
 }
 
 .tree-container::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+  background: var(--text-muted);
 }
 
 /* 空状态 */
@@ -254,7 +283,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 4px;
-  background: white;
+  background: var(--card-bg);
   border: 1.5px solid transparent;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   position: relative;
@@ -269,7 +298,7 @@ body {
 }
 
 .node-content.active {
-  background: linear-gradient(135deg, #e3f2fd 0%, #f0f7ff 100%);
+  background: var(--active-bg);
   border-color: var(--primary-color);
   box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
 }
@@ -407,7 +436,7 @@ body {
 
 /* 层级指示器 - 不同层级有不同颜色 */
 .depth-0 .node-content {
-  background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--bg-color) 0%, var(--card-bg) 100%);
   border-left: 3px solid var(--primary-color);
 }
 
@@ -423,9 +452,21 @@ body {
   border-left: 3px solid #bbdefb;
 }
 
+[data-theme="dark"] .depth-1 .node-content {
+  border-left-color: #3d8bd8;
+}
+
+[data-theme="dark"] .depth-2 .node-content {
+  border-left-color: #2d6da8;
+}
+
+[data-theme="dark"] .depth-3 .node-content {
+  border-left-color: #1e4a73;
+}
+
 /* 根节点特殊样式 */
 .tree-wrapper > .tree-node > .node-content {
-  background: linear-gradient(135deg, #f0f7ff 0%, #ffffff 100%);
+  background: linear-gradient(135deg, var(--active-bg) 0%, var(--card-bg) 100%);
   border: 1.5px solid var(--primary-color);
 }
 
@@ -444,6 +485,7 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .text-btn {
@@ -468,7 +510,7 @@ body {
 }
 
 .text-btn.danger:hover {
-  background: rgba(231, 76, 60, 0.1);
+  background: rgba(239, 68, 68, 0.1);
 }
 
 .primary-btn {
@@ -500,7 +542,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--modal-overlay);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -602,6 +644,8 @@ body {
   border: 1.5px solid var(--border-color);
   border-radius: 8px;
   font-size: 14px;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: all 0.2s;
 }
 
@@ -636,6 +680,8 @@ body {
   border: 1.5px solid var(--border-color);
   border-radius: 10px;
   font-size: 14px;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: all 0.2s;
 }
 
@@ -660,6 +706,10 @@ body {
   animation: toastSlideUp 0.3s ease;
   backdrop-filter: blur(8px);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .toast {
+  background: rgba(30, 41, 59, 0.95);
 }
 
 @keyframes toastSlideUp {
@@ -691,7 +741,7 @@ body {
 /* 路径导航 */
 .path-nav {
   padding: 12px 20px;
-  background: white;
+  background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-muted);
@@ -707,7 +757,7 @@ body {
 /* 搜索框 */
 .search-box {
   padding: 12px 20px;
-  background: white;
+  background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -717,6 +767,8 @@ body {
   border: 1.5px solid var(--border-color);
   border-radius: 10px;
   font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text-primary);
   transition: all 0.2s;
 }
 
@@ -746,6 +798,11 @@ body {
   background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%) !important;
   border-color: var(--success-color) !important;
   box-shadow: 0 0 0 3px rgba(39, 174, 96, 0.15) !important;
+}
+
+[data-theme="dark"] .node-content.current-page {
+  background: linear-gradient(135deg, #1e3a2f 0%, #2d4a3e 100%) !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2) !important;
 }
 
 .node-content.current-page .node-title::after {

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "浏览脉络追踪器",
+  "name": "mindGit",
   "version": "1.0.0",
-  "description": "记录网页跳转关系，以树形结构展示浏览脉络，帮助你回溯浏览路径",
+  "description": "浏览脉络追踪器 - 像思维导图一样记录和可视化你的网页跳转路径",
   "permissions": [
     "tabs",
     "storage",

@@ -1,14 +1,16 @@
-// 浏览脉络追踪器 - 弹出窗口脚本
+// mindGit - 浏览脉络追踪器
 
 // 状态管理
 let currentSessions = {};
 let currentSessionId = null;
 let currentSettings = {};
 let expandedNodes = new Set();
-let lastDataHash = null; // 用于检测数据变化
+let lastDataHash = null;
+let isDarkMode = false;
 
 // DOM 元素
 const elements = {
+  themeBtn: document.getElementById('themeBtn'),
   sessionSelect: document.getElementById('sessionSelect'),
   deleteSessionBtn: document.getElementById('deleteSessionBtn'),
   treeContainer: document.getElementById('treeContainer'),
@@ -33,22 +35,49 @@ const elements = {
   defaultExpand: document.getElementById('defaultExpand')
 };
 
-// 初始化 - 只在DOM加载完成后执行一次
+// 初始化
 document.addEventListener('DOMContentLoaded', async () => {
+  await loadTheme();
   await loadSettings();
   await loadSessions();
   setupEventListeners();
   
-  // 监听存储变化，只在数据真正变化时更新
+  // 监听存储变化
   chrome.storage.onChanged.addListener((changes, areaName) => {
     if (areaName === 'local' && changes.sessions) {
-      // 数据有变化时才刷新
       checkAndRefresh();
     }
   });
 });
 
-// 检查数据是否有变化，有变化才刷新
+// 加载主题
+async function loadTheme() {
+  const result = await chrome.storage.local.get('theme');
+  isDarkMode = result.theme === 'dark';
+  applyTheme();
+}
+
+// 应用主题
+function applyTheme() {
+  if (isDarkMode) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    elements.themeBtn.textContent = '☀️';
+    elements.themeBtn.title = '切换到亮色模式';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    elements.themeBtn.textContent = '🌙';
+    elements.themeBtn.title = '切换到暗色模式';
+  }
+}
+
+// 切换主题
+async function toggleTheme() {
+  isDarkMode = !isDarkMode;
+  await chrome.storage.local.set({ theme: isDarkMode ? 'dark' : 'light' });
+  applyTheme();
+}
+
+// 检查数据是否有变化
 async function checkAndRefresh() {
   const result = await chrome.storage.local.get(['sessions', 'currentSession']);
   const newHash = hashSessions(result.sessions);
@@ -59,7 +88,7 @@ async function checkAndRefresh() {
   }
 }
 
-// 简单的哈希函数用于检测数据变化
+// 简单的哈希函数
 function hashSessions(sessions) {
   if (!sessions) return '';
   const keys = Object.keys(sessions).sort();
@@ -82,7 +111,6 @@ async function loadSettings() {
     defaultExpand: true
   };
   
-  // 应用设置到UI
   elements.maxSessions.value = currentSettings.maxSessions;
   elements.autoClean.checked = currentSettings.autoCleanOldSessions;
   elements.showFavicons.checked = currentSettings.showFavicons !== false;
@@ -95,16 +123,11 @@ async function loadSessions() {
   currentSessions = result.sessions || {};
   currentSessionId = result.currentSession;
   
-  // 更新哈希值
   lastDataHash = hashSessions(currentSessions);
   
-  // 更新会话选择器
   const select = elements.sessionSelect;
-  const previousValue = select.value;
-  
   select.innerHTML = '<option value="">选择会话...</option>';
   
-  // 按时间倒序排序
   const sortedSessions = Object.values(currentSessions)
     .sort((a, b) => b.startTime - a.startTime);
   
@@ -156,7 +179,6 @@ async function loadTree(sessionId) {
     expandedNodes = currentExpanded;
   }
   
-  // 构建树形HTML
   const treeHtml = document.createElement('div');
   treeHtml.className = 'tree-wrapper';
   
@@ -181,13 +203,11 @@ function createTreeNode(node, session, depth) {
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = expandedNodes.has(node.id) || currentSettings.defaultExpand !== false;
   
-  // 节点内容
   const content = document.createElement('div');
   content.className = 'node-content';
   content.title = `${node.title}\n${node.url}`;
   content.style.marginLeft = `${depth * 4}px`;
   
-  // 展开/折叠按钮
   const toggle = document.createElement('span');
   toggle.className = hasChildren ? 'node-toggle' : 'node-toggle leaf';
   toggle.textContent = isExpanded ? '▼' : '▶';
@@ -197,7 +217,6 @@ function createTreeNode(node, session, depth) {
   };
   content.appendChild(toggle);
   
-  // 图标
   if (currentSettings.showFavicons !== false) {
     const icon = document.createElement('img');
     icon.className = 'node-icon';
@@ -212,7 +231,6 @@ function createTreeNode(node, session, depth) {
     content.appendChild(icon);
   }
   
-  // 信息
   const info = document.createElement('div');
   info.className = 'node-info';
   
@@ -228,7 +246,6 @@ function createTreeNode(node, session, depth) {
   
   content.appendChild(info);
   
-  // 访问次数徽章
   if (node.visitCount > 1) {
     const badge = document.createElement('span');
     badge.className = 'node-badge';
@@ -237,7 +254,6 @@ function createTreeNode(node, session, depth) {
     content.appendChild(badge);
   }
   
-  // 操作按钮
   const actions = document.createElement('div');
   actions.className = 'node-actions';
   
@@ -264,14 +280,12 @@ function createTreeNode(node, session, depth) {
   
   content.appendChild(actions);
   
-  // 点击节点打开链接
   content.addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'openUrl', url: node.url });
   });
   
   container.appendChild(content);
   
-  // 子节点容器
   if (hasChildren) {
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'children-container';
@@ -371,7 +385,10 @@ function updateStats() {
 
 // 设置事件监听
 function setupEventListeners() {
-  // 刷新按钮 - 手动刷新
+  // 主题切换
+  elements.themeBtn.addEventListener('click', toggleTheme);
+  
+  // 刷新按钮
   elements.refreshBtn.addEventListener('click', async () => {
     elements.refreshBtn.innerHTML = '<span class="loading-spinner"></span>';
     await loadSessions();
@@ -431,7 +448,7 @@ function setupEventListeners() {
     });
     
     if (result.success) {
-      expandedNodes.clear(); // 清空展开状态
+      expandedNodes.clear();
       await loadSessions();
       elements.sessionSelect.value = result.sessionId;
       await loadTree(result.sessionId);
@@ -463,7 +480,6 @@ function setupEventListeners() {
     elements.settingsModal.classList.remove('active');
     showToast('设置已保存');
     
-    // 重新加载树以应用新设置
     if (currentSessionId) {
       await loadTree(currentSessionId);
     }
@@ -487,7 +503,6 @@ function setupEventListeners() {
     document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
       el.textContent = '▼';
     });
-    // 记录所有有子节点的节点为展开状态
     document.querySelectorAll('.tree-node').forEach(node => {
       const nodeId = node.dataset.nodeId;
       if (node.querySelector('.children-container')) {
