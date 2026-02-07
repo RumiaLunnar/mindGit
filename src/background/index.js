@@ -9,6 +9,11 @@
 let sessionCounter = 0;
 let nodeCounter = 0;
 
+// 最近导航记录（用于去重和重定向检测）
+// 结构: { [tabId]: { url: string, timestamp: number, nodeId: string } }
+const recentNavigations = {};
+const DEBOUNCE_TIME = 2000; // 2秒内同一URL不重复记录
+
 // 生成唯一ID
 function generateSessionId() {
   return `session_${Date.now()}_${sessionCounter++}`;
@@ -101,9 +106,29 @@ async function getOrCreateSession() {
   return { sessions, sessionId: newSessionId };
 }
 
-// 添加节点到树 - 核心函数（带全局去重）
+// 检查是否是重复导航（防抖）
+function isDuplicateNavigation(tabId, url) {
+  const now = Date.now();
+  const recent = recentNavigations[tabId];
+  
+  if (recent && recent.url === url && (now - recent.timestamp) < DEBOUNCE_TIME) {
+    console.log('[mindGit] 忽略重复导航:', url);
+    return true;
+  }
+  
+  // 记录这次导航
+  recentNavigations[tabId] = { url, timestamp: now };
+  return false;
+}
+
+// 添加节点到树 - 核心函数（带全局去重和防抖）
 async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null) {
   if (!shouldTrackUrl(url)) return null;
+  
+  // 防抖检查：短时间内同一URL不重复记录
+  if (isDuplicateNavigation(tabId, url)) {
+    return null;
+  }
   
   const { sessions, sessionId } = await getOrCreateSession();
   const session = sessions[sessionId];
@@ -127,6 +152,9 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
     existingNode.title = title || existingNode.title;
     tabToNode[tabId] = existingNodeId;
     
+    // 更新 recentNavigations 中的 nodeId
+    recentNavigations[tabId].nodeId = existingNodeId;
+    
     await chrome.storage.local.set({ sessions, tabToNode });
     console.log('[mindGit] 更新已有节点:', title, '访问次数:', existingNode.visitCount);
     return existingNodeId;
@@ -145,6 +173,9 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   
   session.allNodes[node.id] = node;
   tabToNode[tabId] = node.id;
+  
+  // 更新 recentNavigations 中的 nodeId
+  recentNavigations[tabId].nodeId = node.id;
   
   await chrome.storage.local.set({ sessions, tabToNode });
   return node.id;
@@ -221,38 +252,39 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       parentNodeId = await getOrCreateSourceNode(sourceTabId);
     } else if (transitionType === 'typed' || transitionType === 'generated') {
       // 地址栏输入或搜索
-      const currentNodeId = tabToNode[details.tabId];
       const isSearch = transitionQualifiers?.includes('from_address_bar');
       
-      if (isSearch && currentNodeId) {
+      // 优先检查是否是从其他页面打开的新标签页
+      const sourceTabId = pendingSourceTab[details.tabId];
+      if (sourceTabId) {
+        parentNodeId = await getOrCreateSourceNode(sourceTabId);
+        console.log('[mindGit] 新标签页搜索/输入，来源标签页节点:', parentNodeId);
+        delete pendingSourceTab[details.tabId];
+        await chrome.storage.local.set({ pendingSourceTab });
+      } else if (isSearch) {
         // 当前页搜索
-        parentNodeId = currentNodeId;
-        console.log('[mindGit] 当前页搜索，父节点:', parentNodeId);
-      } else {
-        // 新标签页搜索 - 从 pendingSourceTab 获取来源
-        const sourceTabId = pendingSourceTab[details.tabId];
-        if (sourceTabId) {
-          parentNodeId = await getOrCreateSourceNode(sourceTabId);
-          console.log('[mindGit] 新标签页搜索，来源标签页节点:', parentNodeId);
-          delete pendingSourceTab[details.tabId];
-          await chrome.storage.local.set({ pendingSourceTab });
+        const currentNodeId = tabToNode[details.tabId];
+        if (currentNodeId) {
+          parentNodeId = currentNodeId;
+          console.log('[mindGit] 当前页搜索，父节点:', parentNodeId);
         }
       }
+      // 直接地址栏输入（非搜索）作为根节点
     } else if (transitionType === 'form_submit') {
       // 表单提交（如搜索框提交）
-      const currentNodeId = tabToNode[details.tabId];
-      if (currentNodeId) {
-        // 当前页提交
-        parentNodeId = currentNodeId;
-        console.log('[mindGit] 表单提交，父节点:', parentNodeId);
+      // 优先检查是否是从其他页面打开的新标签页
+      const sourceTabId = pendingSourceTab[details.tabId];
+      if (sourceTabId) {
+        parentNodeId = await getOrCreateSourceNode(sourceTabId);
+        console.log('[mindGit] 新标签页表单提交，来源标签页节点:', parentNodeId);
+        delete pendingSourceTab[details.tabId];
+        await chrome.storage.local.set({ pendingSourceTab });
       } else {
-        // 新标签页提交
-        const sourceTabId = pendingSourceTab[details.tabId];
-        if (sourceTabId) {
-          parentNodeId = await getOrCreateSourceNode(sourceTabId);
-          console.log('[mindGit] 新标签页表单提交，来源标签页节点:', parentNodeId);
-          delete pendingSourceTab[details.tabId];
-          await chrome.storage.local.set({ pendingSourceTab });
+        // 当前页提交
+        const currentNodeId = tabToNode[details.tabId];
+        if (currentNodeId) {
+          parentNodeId = currentNodeId;
+          console.log('[mindGit] 表单提交，父节点:', parentNodeId);
         }
       }
     } else {
