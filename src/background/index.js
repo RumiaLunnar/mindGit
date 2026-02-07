@@ -38,10 +38,6 @@ chrome.runtime.onInstalled.addListener(() => {
     sessions: {},
     currentSession: null,
     tabToNode: {},
-    // 记录标签页的父节点关系（用于追踪链接点击来源）
-    tabParentMap: {},
-    // 记录标签页之间的来源关系（不依赖于节点是否存在）
-    tabSourceMap: {},
     settings: {
       maxSessions: 50,
       maxNodesPerSession: 500,
@@ -95,34 +91,11 @@ async function getOrCreateSession() {
   await chrome.storage.local.set({ 
     sessions, 
     currentSession: newSessionId,
-    tabToNode: {},
-    tabParentMap: {},
-    tabSourceMap: {}
+    tabToNode: {}
   });
   
   console.log('[mindGit] 创建新会话:', newSessionId);
   return { sessions, sessionId: newSessionId };
-}
-
-// 判断是否是刷新操作
-function isReload(transitionType) {
-  return transitionType === 'reload';
-}
-
-// 判断是否是链接点击（在当前页打开或新标签页打开）
-function isLinkClick(transitionType, transitionQualifiers) {
-  // 链接点击
-  if (transitionType === 'link') return true;
-  
-  // 表单提交
-  if (transitionType === 'form_submit') return true;
-  
-  return false;
-}
-
-// 判断是否是地址栏输入
-function isAddressBarInput(transitionType) {
-  return transitionType === 'typed' || transitionType === 'generated';
 }
 
 // 添加节点到树 - 核心函数
@@ -188,6 +161,27 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   return node.id;
 }
 
+// 获取或创建来源标签页的节点
+async function getOrCreateSourceNode(sourceTabId) {
+  const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
+  
+  // 如果已经有节点，直接返回
+  if (tabToNode[sourceTabId]) {
+    return tabToNode[sourceTabId];
+  }
+  
+  // 否则创建节点
+  try {
+    const tab = await chrome.tabs.get(sourceTabId);
+    if (tab && shouldTrackUrl(tab.url)) {
+      return await addNodeToTree(tab.url, tab.title, tab.favIconUrl, sourceTabId, null);
+    }
+  } catch (e) {
+    console.log('[mindGit] 无法获取来源标签页:', sourceTabId);
+  }
+  return null;
+}
+
 // 核心：使用 onCommitted 获取跳转类型信息
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   // 只处理主框架
@@ -198,11 +192,10 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   
   console.log('[mindGit] 导航提交:', details.url, '类型:', transitionType, '修饰:', transitionQualifiers);
   
-  // 忽略刷新操作 - 这是修复刷新产生新节点的关键
-  if (isReload(transitionType)) {
+  // 忽略刷新操作
+  if (transitionType === 'reload') {
     console.log('[mindGit] 检测到刷新，不创建新节点');
     
-    // 只更新当前节点的访问时间和标题
     const { tabToNode, sessions, currentSession } = await chrome.storage.local.get([
       'tabToNode', 'sessions', 'currentSession'
     ]);
@@ -225,255 +218,71 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   
   try {
     const tab = await chrome.tabs.get(details.tabId);
-    const { tabToNode, tabParentMap } = await chrome.storage.local.get(['tabToNode', 'tabParentMap']);
+    const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
     
-    // 判断跳转类型并处理
-    if (isLinkClick(transitionType, transitionQualifiers)) {
-      // 链接点击 - 需要判断是新标签页还是当前页
+    let parentNodeId = null;
+    
+    // 检查是否有 from 修饰符（表示从哪个标签页打开）
+    const fromQualifier = transitionQualifiers?.find(q => q.startsWith('from_'));
+    
+    if (fromQualifier) {
+      // 新标签页打开
+      const sourceTabId = parseInt(fromQualifier.replace('from_', ''));
+      console.log('[mindGit] 新标签页打开，来源标签页:', sourceTabId);
       
-      // 检查是否有 from 修饰符（表示从哪个标签页打开）
-      const fromQualifier = transitionQualifiers?.find(q => q.startsWith('from_'));
-      
-      if (fromQualifier) {
-        // 新标签页打开链接
-        const fromTabId = parseInt(fromQualifier.replace('from_', ''));
-        let parentNodeId = tabToNode[fromTabId];
-        
-        console.log('[mindGit] 新标签页打开链接，父标签页:', fromTabId, '父节点:', parentNodeId);
-        
-        // 如果父标签页尚未被追踪，尝试通过 tabSourceMap 解析
-        if (!parentNodeId) {
-          const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
-          const sourceTabId = tabSourceMap[fromTabId] || tabSourceMap[details.tabId];
-          if (sourceTabId) {
-            parentNodeId = tabToNode[sourceTabId];
-            if (parentNodeId) {
-              console.log('[mindGit] 通过 tabSourceMap 解析父节点:', parentNodeId);
-            }
-          }
-        }
-        
-        if (parentNodeId) {
-          // 记录这个标签页的父节点关系
-          tabParentMap[details.tabId] = parentNodeId;
-          await chrome.storage.local.set({ tabParentMap });
-          
-          // 添加为子节点
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
-        } else {
-          // 父标签页尚未被追踪，作为根节点
-          console.log('[mindGit] 父标签页尚未追踪，将作为根节点:', details.url);
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
-        }
-      } else {
-        // 当前页点击链接跳转
-        const currentNodeId = tabToNode[details.tabId];
-        
-        if (currentNodeId) {
-          const { sessions, sessionId } = await getOrCreateSession();
-          const session = sessions[sessionId];
-          const currentNode = session.allNodes[currentNodeId];
-          
-          // 确保不是同一个URL（防止重复）
-          if (currentNode && currentNode.url !== details.url) {
-            console.log('[mindGit] 当前页链接跳转，父节点:', currentNodeId);
-            await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, currentNodeId);
-          }
-        } else {
-          // 没有历史记录，作为根节点
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
-        }
+      // 获取或创建来源标签页的节点
+      parentNodeId = await getOrCreateSourceNode(sourceTabId);
+      if (parentNodeId) {
+        console.log('[mindGit] 来源标签页节点:', parentNodeId);
       }
-    } else if (isAddressBarInput(transitionType)) {
-      // 地址栏输入 - 作为新的根节点（或者可以检测是否是搜索）
-      console.log('[mindGit] 地址栏输入，作为根节点');
-      
-      // 检查是否是搜索导致的跳转
+    } else if (transitionType === 'typed' || transitionType === 'generated') {
+      // 地址栏输入
+      const currentNodeId = tabToNode[details.tabId];
       const isSearch = transitionQualifiers?.includes('from_address_bar');
       
-      if (isSearch) {
-        // 如果是从当前页搜索，保持当前节点作为父节点
-        // 先尝试获取当前标签页的节点（当前页搜索）
-        let parentNodeId = tabToNode[details.tabId];
-        
-        // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取
-        if (!parentNodeId && tabParentMap[details.tabId]) {
-          parentNodeId = tabParentMap[details.tabId];
-          console.log('[mindGit] 搜索新标签页，使用 tabParentMap 的父节点:', parentNodeId);
-          // 清理已使用的映射
-          delete tabParentMap[details.tabId];
-          await chrome.storage.local.set({ tabParentMap });
-        }
-        
-        // 如果还没有找到父节点，尝试通过 tabSourceMap 解析
-        if (!parentNodeId) {
-          const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
-          const sourceTabId = tabSourceMap[details.tabId];
-          if (sourceTabId) {
-            parentNodeId = tabToNode[sourceTabId];
-            if (parentNodeId) {
-              console.log('[mindGit] 搜索新标签页，通过 tabSourceMap 解析父节点:', parentNodeId, '来源标签页:', sourceTabId);
-            }
-            // 清理已使用的映射
-            delete tabSourceMap[details.tabId];
-            await chrome.storage.local.set({ tabSourceMap });
+      if (isSearch && currentNodeId) {
+        // 当前页搜索
+        parentNodeId = currentNodeId;
+        console.log('[mindGit] 当前页搜索，父节点:', parentNodeId);
+      } else {
+        // 新标签页搜索或地址栏输入
+        // 检查是否有 openerTabId（通过右键菜单搜索）
+        const openerTabId = tab.openerTabId;
+        if (openerTabId) {
+          parentNodeId = await getOrCreateSourceNode(openerTabId);
+          if (parentNodeId) {
+            console.log('[mindGit] 新标签页搜索，来源标签页节点:', parentNodeId);
           }
         }
-        
-        if (parentNodeId) {
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
-        } else {
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
-        }
-      } else {
-        // 直接地址栏输入，作为根节点
-        await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
       }
     } else {
-      // 其他类型（如 start_page, auto_bookmark, form_submit 等）
-      let parentNodeId = tabToNode[details.tabId];
-      
-      // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取
-      if (!parentNodeId && tabParentMap[details.tabId]) {
-        parentNodeId = tabParentMap[details.tabId];
-        console.log('[mindGit] 其他类型新标签页，使用 tabParentMap 的父节点:', parentNodeId);
-        delete tabParentMap[details.tabId];
-        await chrome.storage.local.set({ tabParentMap });
-      }
-      
-      // 如果还没有找到，尝试通过 tabSourceMap 解析
-      if (!parentNodeId) {
-        const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
-        const sourceTabId = tabSourceMap[details.tabId];
-        if (sourceTabId) {
-          parentNodeId = tabToNode[sourceTabId];
-          if (parentNodeId) {
-            console.log('[mindGit] 其他类型新标签页，通过 tabSourceMap 解析父节点:', parentNodeId);
-          }
-          delete tabSourceMap[details.tabId];
-          await chrome.storage.local.set({ tabSourceMap });
-        }
-      }
-      
-      if (parentNodeId) {
+      // 其他类型：链接点击等
+      const currentNodeId = tabToNode[details.tabId];
+      if (currentNodeId) {
+        // 当前页跳转
         const { sessions, sessionId } = await getOrCreateSession();
         const session = sessions[sessionId];
-        const currentNode = session.allNodes[parentNodeId];
+        const currentNode = session.allNodes[currentNodeId];
         
         if (currentNode && currentNode.url !== details.url) {
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
+          parentNodeId = currentNodeId;
+          console.log('[mindGit] 当前页跳转，父节点:', parentNodeId);
         }
-      } else {
-        await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
+      }
+      // 如果是新标签页但没有 from 修饰符，检查 openerTabId
+      else if (tab.openerTabId) {
+        parentNodeId = await getOrCreateSourceNode(tab.openerTabId);
+        if (parentNodeId) {
+          console.log('[mindGit] 新标签页其他类型，来源标签页节点:', parentNodeId);
+        }
       }
     }
+    
+    // 创建节点
+    await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
+    
   } catch (e) {
     console.error('[mindGit] 处理导航错误:', e);
-  }
-});
-
-// 记录标签页间的来源关系（不依赖于节点是否存在）
-// 结构: tabSourceMap: { [tabId]: sourceTabId }
-
-// 为指定标签页创建节点（如果尚未创建）
-async function ensureTabNode(tabId) {
-  const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
-  
-  if (tabToNode[tabId]) {
-    return tabToNode[tabId];
-  }
-  
-  try {
-    const tab = await chrome.tabs.get(tabId);
-    if (tab && shouldTrackUrl(tab.url)) {
-      const nodeId = await addNodeToTree(tab.url, tab.title, tab.favIconUrl, tabId, null);
-      console.log('[mindGit] 为来源标签页创建节点:', tabId, '节点:', nodeId);
-      return nodeId;
-    }
-  } catch (e) {
-    console.log('[mindGit] 无法获取来源标签页:', tabId, e.message);
-  }
-  return null;
-}
-
-// 监听标签页创建（用于追踪新标签页的来源）
-chrome.tabs.onCreated.addListener(async (tab) => {
-  if (tab.openerTabId) {
-    // 这个标签页是从另一个标签页打开的
-    const { tabSourceMap, tabToNode } = await chrome.storage.local.get(['tabSourceMap', 'tabToNode']);
-    
-    // 记录标签页级别的来源关系
-    tabSourceMap[tab.id] = tab.openerTabId;
-    
-    // 确保来源标签页有节点记录
-    let parentNodeId = tabToNode[tab.openerTabId];
-    if (!parentNodeId) {
-      parentNodeId = await ensureTabNode(tab.openerTabId);
-    }
-    
-    // 记录到 tabParentMap 供后续使用
-    if (parentNodeId) {
-      const { tabParentMap } = await chrome.storage.local.get(['tabParentMap']);
-      tabParentMap[tab.id] = parentNodeId;
-      await chrome.storage.local.set({ tabSourceMap, tabParentMap });
-      console.log('[mindGit] 记录标签页父子关系:', tab.id, '父节点:', parentNodeId);
-    } else {
-      await chrome.storage.local.set({ tabSourceMap });
-      console.log('[mindGit] 记录标签页来源关系:', tab.id, '来源标签页:', tab.openerTabId);
-    }
-  }
-});
-
-// 监听导航目标创建（捕获右键菜单搜索、链接在新标签页打开等）
-chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
-  const { sourceTabId, tabId } = details;
-  
-  console.log('[mindGit] 导航目标创建，来源标签页:', sourceTabId, '新标签页:', tabId);
-  
-  const { tabSourceMap, tabParentMap, tabToNode } = await chrome.storage.local.get(['tabSourceMap', 'tabParentMap', 'tabToNode']);
-  
-  // 记录标签页级别的来源关系
-  tabSourceMap[tabId] = sourceTabId;
-  
-  // 确保来源标签页有节点记录
-  let parentNodeId = tabToNode[sourceTabId];
-  if (!parentNodeId) {
-    parentNodeId = await ensureTabNode(sourceTabId);
-  }
-  
-  // 记录到 tabParentMap
-  if (parentNodeId) {
-    tabParentMap[tabId] = parentNodeId;
-    console.log('[mindGit] 记录导航目标父子关系:', tabId, '父节点:', parentNodeId);
-  }
-  
-  await chrome.storage.local.set({ tabSourceMap, tabParentMap });
-});
-
-// 监听标签页更新（备用方案，处理一些特殊情况）
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-  // 只在页面加载完成时处理
-  if (changeInfo.status !== 'complete' || !tab.url) return;
-  if (!shouldTrackUrl(tab.url)) return;
-  
-  const { tabToNode, tabParentMap } = await chrome.storage.local.get(['tabToNode', 'tabParentMap']);
-  const currentNodeId = tabToNode[tabId];
-  
-  // 如果还没有记录这个标签页
-  if (!currentNodeId) {
-    // 检查是否有父节点记录
-    const parentNodeId = tabParentMap[tabId];
-    
-    if (parentNodeId) {
-      console.log('[mindGit] 使用记录的父节点:', parentNodeId);
-      await addNodeToTree(tab.url, tab.title, tab.favIconUrl, tabId, parentNodeId);
-      // 清理已使用的映射
-      delete tabParentMap[tabId];
-      await chrome.storage.local.set({ tabParentMap });
-    } else {
-      // 作为根节点
-      await addNodeToTree(tab.url, tab.title, tab.favIconUrl, tabId, null);
-    }
   }
 });
 
@@ -517,19 +326,12 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 
 // 监听标签页关闭，清理映射
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  const { tabToNode, tabParentMap, tabSourceMap } = await chrome.storage.local.get(['tabToNode', 'tabParentMap', 'tabSourceMap']);
+  const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
   
   if (tabToNode[tabId]) {
     delete tabToNode[tabId];
+    await chrome.storage.local.set({ tabToNode });
   }
-  if (tabParentMap[tabId]) {
-    delete tabParentMap[tabId];
-  }
-  if (tabSourceMap[tabId]) {
-    delete tabSourceMap[tabId];
-  }
-  
-  await chrome.storage.local.set({ tabToNode, tabParentMap, tabSourceMap });
 });
 
 // 监听来自popup的消息
@@ -556,9 +358,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.local.set({
       sessions: {},
       currentSession: null,
-      tabToNode: {},
-      tabParentMap: {},
-      tabSourceMap: {}
+      tabToNode: {}
     }).then(() => {
       sendResponse({ success: true });
     });
@@ -586,8 +386,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'switchSession') {
-    chrome.storage.local.set({
-      currentSession: request.sessionId
+    chrome.runtime.sendMessage({
+      action: 'switchSession',
+      sessionId: request.sessionId
     }).then(() => {
       sendResponse({ success: true });
     });
