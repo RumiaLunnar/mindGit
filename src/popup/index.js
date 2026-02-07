@@ -236,7 +236,8 @@ function createTreeNode(node, session, depth) {
   
   const title = document.createElement('div');
   title.className = 'node-title';
-  title.textContent = node.title || '无标题';
+  title.textContent = truncateText(node.title || '无标题', 40);
+  title.title = node.title; // 完整标题放在 tooltip 中
   info.appendChild(title);
   
   const url = document.createElement('div');
@@ -334,6 +335,13 @@ function generateFaviconUrl(url) {
   } catch (e) {
     return '';
   }
+}
+
+// 截断文本显示
+function truncateText(text, maxLength = 40) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + '...';
 }
 
 // 截断URL显示
