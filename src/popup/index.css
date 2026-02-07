@@ -284,21 +284,18 @@ body {
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  border-radius: 20px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background-color 0.15s ease;
   margin-bottom: 2px;
   background: var(--card-bg);
   border: 1px solid transparent;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   position: relative;
   z-index: 2;
 }
 
 .node-content:hover {
   background: var(--hover-bg);
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.15);
 }
 
 .node-content.active {
@@ -379,47 +376,35 @@ body {
 
 /* 节点操作按钮 */
 .node-actions {
-  display: none;
-  gap: 6px;
-  margin-left: 8px;
+  display: flex;
+  gap: 4px;
+  margin-left: 6px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .node-content:hover .node-actions {
-  display: flex;
-  animation: fadeIn 0.2s ease;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  opacity: 1;
 }
 
 .node-btn {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   border: none;
-  border-radius: 8px;
-  background: var(--bg-color);
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
   font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease;
   color: var(--text-secondary);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .node-btn:hover {
-  background: var(--primary-color);
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 3px 8px rgba(74, 144, 217, 0.3);
-}
-
-.node-btn:active {
-  transform: translateY(0);
-  box-shadow: 0 1px 3px rgba(74, 144, 217, 0.2);
+  background: var(--hover-bg);
+  color: var(--primary-color);
 }
 
 /* 层级指示器 - 不同层级有不同颜色 */

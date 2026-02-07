@@ -147,7 +147,7 @@ async function loadSessions() {
     showEmptyState();
   }
   
-  updateStats();
+  await updateStats();
 }
 
 // 加载树形结构
@@ -371,13 +371,24 @@ function showEmptyState() {
 }
 
 // 更新统计信息
-function updateStats() {
-  if (!currentSessionId || !currentSessions[currentSessionId]) {
+async function updateStats() {
+  if (!currentSessionId) {
     elements.statsInfo.innerHTML = '💤 无活动会话';
     return;
   }
   
-  const session = currentSessions[currentSessionId];
+  // 直接从后台获取最新会话数据
+  const result = await chrome.runtime.sendMessage({ 
+    action: 'getSessionTree', 
+    sessionId: currentSessionId 
+  });
+  
+  if (!result.session) {
+    elements.statsInfo.innerHTML = '💤 无活动会话';
+    return;
+  }
+  
+  const session = result.session;
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
   
@@ -406,15 +417,19 @@ function setupEventListeners() {
     const sessionId = e.target.value;
     if (sessionId) {
       currentSessionId = sessionId;
+      expandedNodes.clear();
       await chrome.runtime.sendMessage({ 
         action: 'switchSession', 
         sessionId 
       });
       await loadTree(sessionId);
+      await updateStats();
     } else {
+      currentSessionId = null;
+      expandedNodes.clear();
       showEmptyState();
+      await updateStats();
     }
-    updateStats();
   });
   
   // 删除会话

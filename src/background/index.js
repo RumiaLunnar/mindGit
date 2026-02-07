@@ -169,6 +169,15 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   } else {
     session.rootNodes.push(node.id);
     console.log('[mindGit] 添加根节点:', title);
+    
+    // 自动命名：如果是新会话的第一个根节点，用页面标题命名
+    if (session.rootNodes.length === 1 && title) {
+      // 检查是否是默认名称（浏览会话 日期时间格式）
+      if (session.name.startsWith('浏览会话')) {
+        session.name = title.substring(0, 30) || session.name;
+        console.log('[mindGit] 自动命名会话:', session.name);
+      }
+    }
   }
   
   session.allNodes[node.id] = node;
