@@ -232,42 +232,47 @@ body {
   position: relative;
 }
 
-/* 树形连接线 */
-.tree-node::before {
-  content: '';
-  position: absolute;
-  left: 18px;
-  top: 0;
-  bottom: 0;
-  width: 1.5px;
-  background: var(--tree-line-color);
-  z-index: 1;
-}
-
-.tree-node:last-child::before {
-  bottom: auto;
-  height: 22px;
-}
-
-.tree-node:first-child::before {
-  top: 22px;
-}
-
 /* 子节点容器 */
 .children-container {
   position: relative;
-  margin-left: 0;
-  padding-left: 28px;
+  margin-left: 20px;
+  padding-left: 0;
 }
 
+/* 树形连接线 - 竖线 */
 .children-container::before {
   content: '';
   position: absolute;
-  left: 18px;
-  top: -10px;
-  bottom: 16px;
-  width: 1.5px;
+  left: -10px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--tree-line-color), transparent);
+  border-radius: 1px;
+}
+
+/* 树形连接线 - 拐角 */
+.children-container > .tree-node::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 16px;
+  width: 10px;
+  height: 2px;
   background: var(--tree-line-color);
+  border-radius: 1px;
+}
+
+/* 最后一个子节点不显示向下的竖线 */
+.children-container > .tree-node:last-child::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 0;
+  height: 16px;
+  width: 2px;
+  background: var(--tree-line-color);
+  border-radius: 1px;
 }
 
 .children-container.collapsed {
@@ -279,7 +284,7 @@ body {
   display: flex;
   align-items: center;
   padding: 6px 10px;
-  border-radius: 8px;
+  border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s ease;
   margin-bottom: 2px;
@@ -303,35 +308,19 @@ body {
   box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
 }
 
-/* 横向连接线 */
-.node-content::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: 50%;
-  width: 10px;
-  height: 1.5px;
-  background: var(--tree-line-color);
-  transform: translateY(-50%);
-}
-
-.tree-wrapper > .tree-node > .node-content::before {
-  display: none;
-}
-
 /* 展开/折叠按钮 */
 .node-toggle {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 8px;
-  font-size: 10px;
+  margin-right: 6px;
+  font-size: 9px;
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
-  border-radius: 5px;
+  border-radius: 50%;
   background: var(--bg-color);
   border: 1px solid var(--border-color);
   transition: all 0.2s;
@@ -345,19 +334,19 @@ body {
 }
 
 .node-toggle.leaf {
-  visibility: hidden;
+  opacity: 0.3;
   pointer-events: none;
+  font-size: 6px;
 }
 
 /* 图标 */
 .node-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 10px;
-  border-radius: 5px;
+  width: 18px;
+  height: 18px;
+  margin-right: 8px;
+  border-radius: 50%;
   object-fit: contain;
   flex-shrink: 0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .node-icon.default {
@@ -401,13 +390,13 @@ body {
 }
 
 .node-btn {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border: none;
-  border-radius: 6px;
+  border-radius: 50%;
   background: transparent;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -416,26 +405,30 @@ body {
 }
 
 .node-btn:hover {
-  background: rgba(74, 144, 217, 0.1);
-  color: var(--primary-color);
+  background: var(--primary-color);
+  color: white;
 }
 
 /* 层级指示器 - 不同层级有不同颜色 */
+/* 深度颜色指示 - 使用左边框 */
 .depth-0 .node-content {
-  background: linear-gradient(135deg, var(--bg-color) 0%, var(--card-bg) 100%);
-  border-left: 3px solid var(--primary-color);
+  border-left: 4px solid var(--primary-color);
 }
 
 .depth-1 .node-content {
-  border-left: 3px solid #64b5f6;
+  border-left: 4px solid #64b5f6;
 }
 
 .depth-2 .node-content {
-  border-left: 3px solid #90caf9;
+  border-left: 4px solid #90caf9;
 }
 
 .depth-3 .node-content {
-  border-left: 3px solid #bbdefb;
+  border-left: 4px solid #bbdefb;
+}
+
+[data-theme="dark"] .depth-0 .node-content {
+  border-left-color: var(--primary-color);
 }
 
 [data-theme="dark"] .depth-1 .node-content {
@@ -453,7 +446,7 @@ body {
 /* 根节点特殊样式 */
 .tree-wrapper > .tree-node > .node-content {
   background: linear-gradient(135deg, var(--active-bg) 0%, var(--card-bg) 100%);
-  border: 1.5px solid var(--primary-color);
+  border: 1px solid var(--primary-color);
 }
 
 .tree-wrapper > .tree-node > .node-content .node-title {
