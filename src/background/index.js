@@ -238,12 +238,21 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         
         console.log('[mindGit] 新标签页打开链接，父标签页:', fromTabId, '父节点:', parentNodeId);
         
-        // 记录这个标签页的父节点关系
-        tabParentMap[details.tabId] = parentNodeId;
-        await chrome.storage.local.set({ tabParentMap });
-        
-        // 添加为子节点
-        await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
+        if (parentNodeId) {
+          // 记录这个标签页的父节点关系
+          tabParentMap[details.tabId] = parentNodeId;
+          await chrome.storage.local.set({ tabParentMap });
+          
+          // 添加为子节点
+          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
+        } else {
+          // 父标签页尚未被追踪，作为根节点但保留关系供后续使用
+          console.log('[mindGit] 父标签页尚未追踪，将作为根节点:', details.url);
+          
+          // 尝试从 tabParentMap 获取（可能由 tabs.onCreated 记录）
+          const fallbackParentId = tabParentMap[details.tabId];
+          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, fallbackParentId || null);
+        }
       } else {
         // 当前页点击链接跳转
         const currentNodeId = tabToNode[details.tabId];
