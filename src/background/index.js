@@ -433,6 +433,53 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'deleteNode') {
+    chrome.storage.local.get(['sessions', 'tabToNode']).then(result => {
+      const sessions = result.sessions;
+      const session = sessions[request.sessionId];
+      
+      if (!session || !session.allNodes[request.nodeId]) {
+        sendResponse({ success: false, error: '节点不存在' });
+        return;
+      }
+      
+      const nodeId = request.nodeId;
+      const node = session.allNodes[nodeId];
+      
+      // 从父节点的 children 中移除
+      if (node.parentId && session.allNodes[node.parentId]) {
+        const parent = session.allNodes[node.parentId];
+        parent.children = parent.children.filter(id => id !== nodeId);
+      } else {
+        // 是根节点
+        session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
+      }
+      
+      // 递归删除所有子节点
+      const deleteRecursive = (id) => {
+        const n = session.allNodes[id];
+        if (n && n.children) {
+          n.children.forEach(childId => deleteRecursive(childId));
+        }
+        delete session.allNodes[id];
+      };
+      deleteRecursive(nodeId);
+      
+      // 清理 tabToNode 中的引用
+      const tabToNode = result.tabToNode || {};
+      for (const [tabId, nId] of Object.entries(tabToNode)) {
+        if (nId === nodeId || !session.allNodes[nId]) {
+          delete tabToNode[tabId];
+        }
+      }
+      
+      chrome.storage.local.set({ sessions, tabToNode }).then(() => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+  
   if (request.action === 'openUrl') {
     chrome.tabs.create({ url: request.url });
     sendResponse({ success: true });

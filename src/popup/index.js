@@ -194,7 +194,7 @@ async function loadTree(sessionId) {
   elements.treeContainer.appendChild(treeHtml);
 }
 
-// 创建树节点元素
+// 创建树节点元素（简化版）
 function createTreeNode(node, session, depth) {
   const container = document.createElement('div');
   container.className = `tree-node depth-${Math.min(depth, 3)}`;
@@ -205,108 +205,105 @@ function createTreeNode(node, session, depth) {
   
   const content = document.createElement('div');
   content.className = 'node-content';
-  content.title = `${node.title}\n${node.url}`;
   content.style.marginLeft = `${depth * 4}px`;
   
+  // 展开/折叠按钮
   const toggle = document.createElement('span');
   toggle.className = hasChildren ? 'node-toggle' : 'node-toggle leaf';
-  toggle.textContent = isExpanded ? '▼' : '▶';
+  toggle.textContent = hasChildren ? (isExpanded ? '▼' : '▶') : '•';
   toggle.onclick = (e) => {
     e.stopPropagation();
-    toggleNode(node.id, container);
+    if (hasChildren) toggleNode(node.id, container);
   };
   content.appendChild(toggle);
   
-  if (currentSettings.showFavicons !== false) {
-    const icon = document.createElement('img');
-    icon.className = 'node-icon';
-    if (node.favIconUrl) {
-      icon.src = node.favIconUrl;
-      icon.onerror = () => {
-        icon.src = generateFaviconUrl(node.url);
-      };
-    } else {
-      icon.src = generateFaviconUrl(node.url);
-    }
-    content.appendChild(icon);
-  }
+  // 图标
+  const icon = document.createElement('img');
+  icon.className = 'node-icon';
+  icon.src = node.favIconUrl || generateFaviconUrl(node.url);
+  icon.onerror = () => { icon.src = generateFaviconUrl(node.url); };
+  content.appendChild(icon);
   
-  const info = document.createElement('div');
-  info.className = 'node-info';
-  
+  // 标题（单行，带tooltip显示完整信息）
   const title = document.createElement('div');
   title.className = 'node-title';
-  title.textContent = truncateText(node.title || '无标题', 40);
-  title.title = node.title; // 完整标题放在 tooltip 中
-  info.appendChild(title);
+  title.textContent = truncateText(node.title || '无标题', 35);
+  title.title = `${node.title}\n${node.url}${node.visitCount > 1 ? '\n访问: ' + node.visitCount + '次' : ''}`;
+  content.appendChild(title);
   
-  const url = document.createElement('div');
-  url.className = 'node-url';
-  url.textContent = truncateUrl(node.url);
-  info.appendChild(url);
-  
-  content.appendChild(info);
-  
+  // 访问次数（小 badge）
   if (node.visitCount > 1) {
     const badge = document.createElement('span');
     badge.className = 'node-badge';
-    badge.textContent = `${node.visitCount}`;
-    badge.title = `访问了 ${node.visitCount} 次`;
+    badge.textContent = node.visitCount;
     content.appendChild(badge);
   }
   
+  // 操作按钮组（简化）
   const actions = document.createElement('div');
   actions.className = 'node-actions';
   
-  const openBtn = document.createElement('button');
-  openBtn.className = 'node-btn';
-  openBtn.innerHTML = '↗️';
-  openBtn.title = '在新标签页打开';
-  openBtn.onclick = (e) => {
+  // 打开
+  actions.innerHTML = `
+    <button class="node-btn" title="打开">↗️</button>
+    <button class="node-btn" title="删除">🗑️</button>
+  `;
+  
+  // 打开按钮事件
+  actions.children[0].onclick = (e) => {
     e.stopPropagation();
     chrome.runtime.sendMessage({ action: 'openUrl', url: node.url });
   };
-  actions.appendChild(openBtn);
   
-  const copyBtn = document.createElement('button');
-  copyBtn.className = 'node-btn';
-  copyBtn.innerHTML = '📋';
-  copyBtn.title = '复制链接';
-  copyBtn.onclick = (e) => {
+  // 删除按钮事件
+  actions.children[1].onclick = (e) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(node.url);
-    showToast('链接已复制');
+    if (confirm('确定要删除这个节点吗？')) {
+      deleteNode(node.id, session.id);
+    }
   };
-  actions.appendChild(copyBtn);
   
   content.appendChild(actions);
   
-  content.addEventListener('click', () => {
+  // 点击标题打开链接
+  title.onclick = () => {
     chrome.runtime.sendMessage({ action: 'openUrl', url: node.url });
-  });
+  };
   
   container.appendChild(content);
   
+  // 子节点
   if (hasChildren) {
     const childrenContainer = document.createElement('div');
     childrenContainer.className = 'children-container';
-    if (!isExpanded) {
-      childrenContainer.classList.add('collapsed');
-      toggle.textContent = '▶';
-    }
+    if (!isExpanded) childrenContainer.classList.add('collapsed');
     
     for (const childId of node.children) {
       const childNode = session.allNodes[childId];
       if (childNode) {
-        const childElement = createTreeNode(childNode, session, depth + 1);
-        childrenContainer.appendChild(childElement);
+        childrenContainer.appendChild(createTreeNode(childNode, session, depth + 1));
       }
     }
-    
     container.appendChild(childrenContainer);
   }
   
   return container;
+}
+
+// 删除节点
+async function deleteNode(nodeId, sessionId) {
+  const result = await chrome.runtime.sendMessage({ 
+    action: 'deleteNode', 
+    sessionId,
+    nodeId 
+  });
+  
+  if (result.success) {
+    showToast('节点已删除');
+    await loadTree(sessionId);
+  } else {
+    showToast('删除失败: ' + (result.error || '未知错误'));
+  }
 }
 
 // 展开/折叠节点
