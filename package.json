@@ -1,0 +1,30 @@
+{
+  "name": "mindgit",
+  "version": "1.0.0",
+  "description": "浏览脉络追踪器 - 像思维导图一样记录和可视化你的网页跳转路径",
+  "main": "src/background/index.js",
+  "scripts": {
+    "build": "echo 'Build script placeholder - 未来可以添加打包优化'",
+    "test": "echo 'Test script placeholder - 未来可以添加测试'",
+    "lint": "echo 'Lint script placeholder - 未来可以添加代码检查'",
+    "package": "zip -r mindgit-v$npm_package_version.zip assets/ src/ manifest.json README.md -x '*.git*'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RumiaLunnar/mindGit.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "browser-history",
+    "tree-visualization",
+    "mindmap",
+    "productivity"
+  ],
+  "author": "RumiaLunnar",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/RumiaLunnar/mindGit/issues"
+  },
+  "homepage": "https://github.com/RumiaLunnar/mindGit#readme",
+  "devDependencies": {}
+}

@@ -1,5 +1,21 @@
 # 🌳 mindGit
 
+<p align="center">
+  <b>Record and visualize your web browsing paths like a mind map</b>
+</p>
+
+<p align="center">
+  <a href="../README.md">中文</a> | <a href="README_EN.md">English</a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Chrome-Extension-blue?style=flat-square&logo=google-chrome&logoColor=white">
+  <img src="https://img.shields.io/badge/Manifest-V3-green?style=flat-square">
+  <img src="https://img.shields.io/badge/License-MIT-yellow?style=flat-square">
+</p>
+
+---
+
 Record and visualize your web browsing paths like a mind map.
 
 ## Introduction
