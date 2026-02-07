@@ -247,7 +247,7 @@ body {
   top: 0;
   bottom: 0;
   width: 2px;
-  background: linear-gradient(to bottom, var(--tree-line-color), transparent);
+  background: var(--tree-line-color);
   border-radius: 1px;
 }
 
