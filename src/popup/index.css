@@ -297,9 +297,8 @@ body {
 
 .node-content:hover {
   background: var(--hover-bg);
-  border-color: var(--border-color);
-  box-shadow: var(--shadow);
-  transform: translateX(2px);
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(74, 144, 217, 0.15);
 }
 
 .node-content.active {
@@ -310,33 +309,32 @@ body {
 
 /* 展开/折叠按钮 */
 .node-toggle {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 6px;
-  font-size: 9px;
+  margin-right: 8px;
+  font-size: 10px;
   color: var(--text-muted);
   cursor: pointer;
   user-select: none;
-  border-radius: 50%;
-  background: var(--bg-color);
-  border: 1px solid var(--border-color);
-  transition: all 0.2s;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
 .node-toggle:hover {
-  background: var(--primary-color);
-  color: white;
-  border-color: var(--primary-color);
+  background: var(--hover-bg);
+  color: var(--primary-color);
 }
 
 .node-toggle.leaf {
-  opacity: 0.3;
+  opacity: 0.25;
   pointer-events: none;
-  font-size: 6px;
+  font-size: 8px;
 }
 
 /* 图标 */
@@ -369,44 +367,59 @@ body {
 /* 访问次数徽章 */
 .node-badge {
   font-size: 10px;
-  padding: 3px 8px;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
-  color: white;
-  border-radius: 12px;
-  margin-left: 6px;
-  font-weight: 500;
+  padding: 2px 7px;
+  background: var(--active-bg);
+  color: var(--primary-color);
+  border-radius: 10px;
+  margin-left: 8px;
+  font-weight: 600;
   flex-shrink: 0;
+  border: 1px solid var(--primary-color);
 }
 
 /* 节点操作按钮 */
 .node-actions {
   display: none;
-  gap: 4px;
-  margin-left: 6px;
+  gap: 6px;
+  margin-left: 8px;
 }
 
 .node-content:hover .node-actions {
   display: flex;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .node-btn {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   border: none;
-  border-radius: 50%;
-  background: transparent;
+  border-radius: 8px;
+  background: var(--bg-color);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s;
-  color: var(--text-muted);
+  transition: all 0.15s ease;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .node-btn:hover {
   background: var(--primary-color);
   color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(74, 144, 217, 0.3);
+}
+
+.node-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 3px rgba(74, 144, 217, 0.2);
 }
 
 /* 层级指示器 - 不同层级有不同颜色 */
