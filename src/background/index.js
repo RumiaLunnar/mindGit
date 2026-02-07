@@ -234,7 +234,23 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         if (sourceTabId) {
           parentNodeId = await getOrCreateSourceNode(sourceTabId);
           console.log('[mindGit] 新标签页搜索，来源标签页节点:', parentNodeId);
-          // 清理已使用的记录
+          delete pendingSourceTab[details.tabId];
+          await chrome.storage.local.set({ pendingSourceTab });
+        }
+      }
+    } else if (transitionType === 'form_submit') {
+      // 表单提交（如搜索框提交）
+      const currentNodeId = tabToNode[details.tabId];
+      if (currentNodeId) {
+        // 当前页提交
+        parentNodeId = currentNodeId;
+        console.log('[mindGit] 表单提交，父节点:', parentNodeId);
+      } else {
+        // 新标签页提交
+        const sourceTabId = pendingSourceTab[details.tabId];
+        if (sourceTabId) {
+          parentNodeId = await getOrCreateSourceNode(sourceTabId);
+          console.log('[mindGit] 新标签页表单提交，来源标签页节点:', parentNodeId);
           delete pendingSourceTab[details.tabId];
           await chrome.storage.local.set({ pendingSourceTab });
         }
