@@ -15,6 +15,20 @@ export async function sendMessage(message) {
 }
 
 /**
+ * 唤醒 Service Worker
+ * @returns {Promise<boolean>}
+ */
+export async function ping() {
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'ping' });
+    return result && result.pong;
+  } catch (e) {
+    console.warn('[MindGit] Ping 失败:', e);
+    return false;
+  }
+}
+
+/**
  * 获取所有会话
  * @returns {Promise<{sessions: Object, currentSession: string}>}
  */

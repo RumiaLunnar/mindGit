@@ -17,6 +17,22 @@ const DEBOUNCE_TIME = 2000; // 2秒内同一URL不重复记录
 // 防止重复捕获的标志
 let isCapturing = false;
 
+// Service Worker 保活 - 每 20 秒发送一次心跳
+const keepAliveInterval = setInterval(() => {
+  // 简单的存储操作来保持 Service Worker 活跃
+  chrome.storage.local.get('lastKeepAlive').then(result => {
+    chrome.storage.local.set({ lastKeepAlive: Date.now() });
+  });
+}, 20000);
+
+// 监听 popup 打开事件
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'ping') {
+    sendResponse({ pong: true, timestamp: Date.now() });
+    return true;
+  }
+});
+
 // 生成唯一ID
 function generateSessionId() {
   return `session_${Date.now()}_${sessionCounter++}`;
@@ -40,26 +56,37 @@ function createNode(url, title, favIconUrl, parentId = null) {
   };
 }
 
-// 初始化存储
-chrome.runtime.onInstalled.addListener(() => {
-  chrome.storage.local.set({
-    sessions: {},
-    currentSession: null,
-    tabToNode: {},
-    // 临时存储新标签页的来源信息（标签页ID -> 来源标签页ID）
-    pendingSourceTab: {},
-    settings: {
-      maxSessions: 50,
-      maxNodesPerSession: 500,
-      autoCleanOldSessions: true,
-      showFavicons: true,
-      defaultExpand: true,
-      autoCreateSession: true
-    }
-  });
-  console.log('[mindGit] 已初始化');
-  // 扩展安装时尝试记录当前页面
-  captureCurrentTabs();
+// 初始化存储 - 只在安装时执行，更新时保留数据
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    // 首次安装时初始化
+    chrome.storage.local.set({
+      sessions: {},
+      currentSession: null,
+      tabToNode: {},
+      pendingSourceTab: {},
+      settings: {
+        maxSessions: 50,
+        maxNodesPerSession: 500,
+        autoCleanOldSessions: true,
+        showFavicons: true,
+        defaultExpand: true,
+        autoCreateSession: true
+      }
+    });
+    console.log('[mindGit] 首次安装，已初始化');
+    captureCurrentTabs();
+  } else if (details.reason === 'update') {
+    // 更新时保留数据，只添加新的设置项
+    chrome.storage.local.get('settings').then(result => {
+      const settings = result.settings || {};
+      if (typeof settings.autoCreateSession === 'undefined') {
+        settings.autoCreateSession = true;
+      }
+      chrome.storage.local.set({ settings });
+    });
+    console.log('[mindGit] 扩展已更新，保留现有数据');
+  }
 });
 
 // Chrome 启动时也尝试记录当前页面

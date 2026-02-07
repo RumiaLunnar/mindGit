@@ -26,6 +26,9 @@ function diagnose() {
 async function init() {
   console.log('[MindGit] ========== 初始化开始 ==========');
   
+  // 唤醒 Service Worker
+  await api.ping();
+  
   // 初始化 DOM 元素引用
   initElements();
   
