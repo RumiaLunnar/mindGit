@@ -12,6 +12,7 @@ let isDarkMode = false;
 const elements = {
   themeBtn: document.getElementById('themeBtn'),
   sessionSelect: document.getElementById('sessionSelect'),
+  renameSessionBtn: document.getElementById('renameSessionBtn'),
   deleteSessionBtn: document.getElementById('deleteSessionBtn'),
   treeContainer: document.getElementById('treeContainer'),
   statsInfo: document.getElementById('statsInfo'),
@@ -426,20 +427,51 @@ function setupEventListeners() {
     if (sessionId) {
       currentSessionId = sessionId;
       expandedNodes.clear();
+      // 先清空显示
+      elements.treeContainer.innerHTML = '';
+      // 切换会话
       await chrome.runtime.sendMessage({ 
         action: 'switchSession', 
         sessionId 
       });
-      // 重新加载所有会话数据确保同步
+      // 重新加载所有数据
       const result = await chrome.runtime.sendMessage({ action: 'getSessions' });
       currentSessions = result.sessions || {};
+      // 加载树形
       await loadTree(sessionId);
       await updateStats();
     } else {
       currentSessionId = null;
       expandedNodes.clear();
+      elements.treeContainer.innerHTML = '';
       showEmptyState();
       await updateStats();
+    }
+  });
+  
+  // 重命名会话
+  elements.renameSessionBtn.addEventListener('click', async () => {
+    if (!currentSessionId) {
+      showToast('请先选择会话');
+      return;
+    }
+    
+    const session = currentSessions[currentSessionId];
+    const newName = prompt('请输入新会话名称:', session?.name || '');
+    
+    if (newName && newName.trim()) {
+      const result = await chrome.runtime.sendMessage({
+        action: 'renameSession',
+        sessionId: currentSessionId,
+        name: newName.trim()
+      });
+      
+      if (result.success) {
+        showToast('会话已重命名');
+        await loadSessions();
+      } else {
+        showToast('重命名失败');
+      }
     }
   });
   

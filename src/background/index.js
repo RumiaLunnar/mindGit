@@ -431,6 +431,21 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'renameSession') {
+    chrome.storage.local.get('sessions').then(result => {
+      const sessions = result.sessions;
+      if (sessions[request.sessionId]) {
+        sessions[request.sessionId].name = request.name;
+        chrome.storage.local.set({ sessions }).then(() => {
+          sendResponse({ success: true });
+        });
+      } else {
+        sendResponse({ success: false, error: '会话不存在' });
+      }
+    });
+    return true;
+  }
+  
   if (request.action === 'deleteSession') {
     chrome.storage.local.get(['sessions', 'currentSession']).then(result => {
       const sessions = result.sessions;

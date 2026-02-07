@@ -223,7 +223,7 @@ body {
   line-height: 1.5;
 }
 
-/* 树形结构 - 简化设计 */
+/* 树形结构 - 无连接线 */
 .tree-wrapper {
   position: relative;
 }
@@ -232,11 +232,9 @@ body {
   position: relative;
 }
 
-/* 子节点容器 - 只有左边框表示层级 */
+/* 子节点容器 */
 .children-container {
-  margin-left: 12px;
-  padding-left: 8px;
-  border-left: 1.5px solid var(--tree-line-color);
+  margin-left: 16px;
 }
 
 .children-container.collapsed {
