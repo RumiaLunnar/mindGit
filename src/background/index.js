@@ -40,6 +40,8 @@ chrome.runtime.onInstalled.addListener(() => {
     tabToNode: {},
     // 记录标签页的父节点关系（用于追踪链接点击来源）
     tabParentMap: {},
+    // 记录标签页之间的来源关系（不依赖于节点是否存在）
+    tabSourceMap: {},
     settings: {
       maxSessions: 50,
       maxNodesPerSession: 500,
@@ -94,7 +96,8 @@ async function getOrCreateSession() {
     sessions, 
     currentSession: newSessionId,
     tabToNode: {},
-    tabParentMap: {}
+    tabParentMap: {},
+    tabSourceMap: {}
   });
   
   console.log('[mindGit] 创建新会话:', newSessionId);
@@ -234,9 +237,21 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       if (fromQualifier) {
         // 新标签页打开链接
         const fromTabId = parseInt(fromQualifier.replace('from_', ''));
-        const parentNodeId = tabToNode[fromTabId];
+        let parentNodeId = tabToNode[fromTabId];
         
         console.log('[mindGit] 新标签页打开链接，父标签页:', fromTabId, '父节点:', parentNodeId);
+        
+        // 如果父标签页尚未被追踪，尝试通过 tabSourceMap 解析
+        if (!parentNodeId) {
+          const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
+          const sourceTabId = tabSourceMap[fromTabId] || tabSourceMap[details.tabId];
+          if (sourceTabId) {
+            parentNodeId = tabToNode[sourceTabId];
+            if (parentNodeId) {
+              console.log('[mindGit] 通过 tabSourceMap 解析父节点:', parentNodeId);
+            }
+          }
+        }
         
         if (parentNodeId) {
           // 记录这个标签页的父节点关系
@@ -246,12 +261,9 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
           // 添加为子节点
           await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, parentNodeId);
         } else {
-          // 父标签页尚未被追踪，作为根节点但保留关系供后续使用
+          // 父标签页尚未被追踪，作为根节点
           console.log('[mindGit] 父标签页尚未追踪，将作为根节点:', details.url);
-          
-          // 尝试从 tabParentMap 获取（可能由 tabs.onCreated 记录）
-          const fallbackParentId = tabParentMap[details.tabId];
-          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, fallbackParentId || null);
+          await addNodeToTree(details.url, tab.title, tab.favIconUrl, details.tabId, null);
         }
       } else {
         // 当前页点击链接跳转
@@ -284,13 +296,28 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         // 先尝试获取当前标签页的节点（当前页搜索）
         let parentNodeId = tabToNode[details.tabId];
         
-        // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取（新标签页搜索）
+        // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取
         if (!parentNodeId && tabParentMap[details.tabId]) {
           parentNodeId = tabParentMap[details.tabId];
-          console.log('[mindGit] 搜索新标签页，使用记录的父节点:', parentNodeId);
+          console.log('[mindGit] 搜索新标签页，使用 tabParentMap 的父节点:', parentNodeId);
           // 清理已使用的映射
           delete tabParentMap[details.tabId];
           await chrome.storage.local.set({ tabParentMap });
+        }
+        
+        // 如果还没有找到父节点，尝试通过 tabSourceMap 解析
+        if (!parentNodeId) {
+          const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
+          const sourceTabId = tabSourceMap[details.tabId];
+          if (sourceTabId) {
+            parentNodeId = tabToNode[sourceTabId];
+            if (parentNodeId) {
+              console.log('[mindGit] 搜索新标签页，通过 tabSourceMap 解析父节点:', parentNodeId, '来源标签页:', sourceTabId);
+            }
+            // 清理已使用的映射
+            delete tabSourceMap[details.tabId];
+            await chrome.storage.local.set({ tabSourceMap });
+          }
         }
         
         if (parentNodeId) {
@@ -306,13 +333,26 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       // 其他类型（如 start_page, auto_bookmark, form_submit 等）
       let parentNodeId = tabToNode[details.tabId];
       
-      // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取（新标签页打开）
+      // 如果当前标签页没有节点记录，尝试从 tabParentMap 获取
       if (!parentNodeId && tabParentMap[details.tabId]) {
         parentNodeId = tabParentMap[details.tabId];
-        console.log('[mindGit] 其他类型新标签页，使用记录的父节点:', parentNodeId);
-        // 清理已使用的映射
+        console.log('[mindGit] 其他类型新标签页，使用 tabParentMap 的父节点:', parentNodeId);
         delete tabParentMap[details.tabId];
         await chrome.storage.local.set({ tabParentMap });
+      }
+      
+      // 如果还没有找到，尝试通过 tabSourceMap 解析
+      if (!parentNodeId) {
+        const { tabSourceMap } = await chrome.storage.local.get(['tabSourceMap']);
+        const sourceTabId = tabSourceMap[details.tabId];
+        if (sourceTabId) {
+          parentNodeId = tabToNode[sourceTabId];
+          if (parentNodeId) {
+            console.log('[mindGit] 其他类型新标签页，通过 tabSourceMap 解析父节点:', parentNodeId);
+          }
+          delete tabSourceMap[details.tabId];
+          await chrome.storage.local.set({ tabSourceMap });
+        }
       }
       
       if (parentNodeId) {
@@ -332,17 +372,28 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   }
 });
 
+// 记录标签页间的来源关系（不依赖于节点是否存在）
+// 结构: tabSourceMap: { [tabId]: sourceTabId }
+
 // 监听标签页创建（用于追踪新标签页的来源）
 chrome.tabs.onCreated.addListener(async (tab) => {
   if (tab.openerTabId) {
     // 这个标签页是从另一个标签页打开的
-    const { tabParentMap, tabToNode } = await chrome.storage.local.get(['tabParentMap', 'tabToNode']);
-    const parentNodeId = tabToNode[tab.openerTabId];
+    const { tabSourceMap, tabToNode } = await chrome.storage.local.get(['tabSourceMap', 'tabToNode']);
     
+    // 记录标签页级别的来源关系（即使父标签页还没有节点记录）
+    tabSourceMap[tab.id] = tab.openerTabId;
+    
+    // 如果父标签页已有节点记录，同时也记录到 tabParentMap
+    const parentNodeId = tabToNode[tab.openerTabId];
     if (parentNodeId) {
+      const { tabParentMap } = await chrome.storage.local.get(['tabParentMap']);
       tabParentMap[tab.id] = parentNodeId;
-      await chrome.storage.local.set({ tabParentMap });
+      await chrome.storage.local.set({ tabSourceMap, tabParentMap });
       console.log('[mindGit] 记录标签页父子关系:', tab.id, '父节点:', parentNodeId);
+    } else {
+      await chrome.storage.local.set({ tabSourceMap });
+      console.log('[mindGit] 记录标签页来源关系:', tab.id, '来源标签页:', tab.openerTabId);
     }
   }
 });
@@ -353,14 +404,19 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
   
   console.log('[mindGit] 导航目标创建，来源标签页:', sourceTabId, '新标签页:', tabId);
   
-  const { tabParentMap, tabToNode } = await chrome.storage.local.get(['tabParentMap', 'tabToNode']);
-  const parentNodeId = tabToNode[sourceTabId];
+  const { tabSourceMap, tabParentMap, tabToNode } = await chrome.storage.local.get(['tabSourceMap', 'tabParentMap', 'tabToNode']);
   
+  // 记录标签页级别的来源关系
+  tabSourceMap[tabId] = sourceTabId;
+  
+  // 如果父标签页已有节点记录，同时也记录到 tabParentMap
+  const parentNodeId = tabToNode[sourceTabId];
   if (parentNodeId) {
     tabParentMap[tabId] = parentNodeId;
-    await chrome.storage.local.set({ tabParentMap });
     console.log('[mindGit] 记录导航目标父子关系:', tabId, '父节点:', parentNodeId);
   }
+  
+  await chrome.storage.local.set({ tabSourceMap, tabParentMap });
 });
 
 // 监听标签页更新（备用方案，处理一些特殊情况）
@@ -430,7 +486,7 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 
 // 监听标签页关闭，清理映射
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  const { tabToNode, tabParentMap } = await chrome.storage.local.get(['tabToNode', 'tabParentMap']);
+  const { tabToNode, tabParentMap, tabSourceMap } = await chrome.storage.local.get(['tabToNode', 'tabParentMap', 'tabSourceMap']);
   
   if (tabToNode[tabId]) {
     delete tabToNode[tabId];
@@ -438,8 +494,11 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   if (tabParentMap[tabId]) {
     delete tabParentMap[tabId];
   }
+  if (tabSourceMap[tabId]) {
+    delete tabSourceMap[tabId];
+  }
   
-  await chrome.storage.local.set({ tabToNode, tabParentMap });
+  await chrome.storage.local.set({ tabToNode, tabParentMap, tabSourceMap });
 });
 
 // 监听来自popup的消息
@@ -467,7 +526,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       sessions: {},
       currentSession: null,
       tabToNode: {},
-      tabParentMap: {}
+      tabParentMap: {},
+      tabSourceMap: {}
     }).then(() => {
       sendResponse({ success: true });
     });
