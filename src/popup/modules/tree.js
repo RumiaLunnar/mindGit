@@ -109,7 +109,10 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   content.appendChild(actions);
   
   // 点击标题打开链接
-  title.onclick = () => api.openUrl(node.url);
+  title.onclick = () => {
+    console.log('[MindGit tree] 点击节点:', node.title, 'URL:', node.url);
+    api.openUrl(node.url);
+  };
   
   return content;
 }

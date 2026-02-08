@@ -26,8 +26,18 @@ function diagnose() {
 async function init() {
   console.log('[MindGit] ========== 初始化开始 ==========');
   
-  // 唤醒 Service Worker
-  await api.ping();
+  // 测试后台通信
+  try {
+    console.log('[MindGit] 测试 ping...');
+    const pingResult = await api.ping();
+    console.log('[MindGit] ping 结果:', pingResult);
+    
+    console.log('[MindGit] 测试 openUrl 消息...');
+    const testResult = await chrome.runtime.sendMessage({ action: 'openUrl', url: 'about:blank' });
+    console.log('[MindGit] 测试 openUrl 结果:', testResult);
+  } catch (e) {
+    console.error('[MindGit] 测试失败:', e);
+  }
   
   // 初始化 DOM 元素引用
   initElements();
