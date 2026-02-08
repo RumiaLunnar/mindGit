@@ -16,7 +16,7 @@ export async function loadSettings() {
   };
   
   updateSettingsUI();
-  applyColorTheme(state.currentSettings.colorTheme);
+  // 主题在 theme.js 的 loadTheme 中统一应用
 }
 
 /**
@@ -32,12 +32,12 @@ function updateSettingsUI() {
     colorTheme
   } = state.elements;
   
-  maxSessions.value = state.currentSettings.maxSessions;
-  autoClean.checked = state.currentSettings.autoCleanOldSessions;
-  showFavicons.checked = state.currentSettings.showFavicons !== false;
-  defaultExpand.checked = state.currentSettings.defaultExpand !== false;
-  autoCreateSession.checked = state.currentSettings.autoCreateSession !== false;
-  colorTheme.value = state.currentSettings.colorTheme || 'default';
+  if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
+  if (autoClean) autoClean.checked = state.currentSettings.autoCleanOldSessions;
+  if (showFavicons) showFavicons.checked = state.currentSettings.showFavicons !== false;
+  if (defaultExpand) defaultExpand.checked = state.currentSettings.defaultExpand !== false;
+  if (autoCreateSession) autoCreateSession.checked = state.currentSettings.autoCreateSession !== false;
+  if (colorTheme) colorTheme.value = state.currentSettings.colorTheme || 'default';
 }
 
 /**
@@ -45,20 +45,21 @@ function updateSettingsUI() {
  */
 export async function saveSettings() {
   const { colorTheme } = state.elements;
-  const newTheme = colorTheme.value;
+  const newTheme = colorTheme?.value || 'default';
   
   state.currentSettings = {
     ...state.currentSettings,
-    maxSessions: parseInt(state.elements.maxSessions.value) || 50,
-    autoCleanOldSessions: state.elements.autoClean.checked,
-    showFavicons: state.elements.showFavicons.checked,
-    defaultExpand: state.elements.defaultExpand.checked,
-    autoCreateSession: state.elements.autoCreateSession.checked,
+    maxSessions: parseInt(state.elements.maxSessions?.value) || 50,
+    autoCleanOldSessions: state.elements.autoClean?.checked ?? true,
+    showFavicons: state.elements.showFavicons?.checked ?? true,
+    defaultExpand: state.elements.defaultExpand?.checked ?? true,
+    autoCreateSession: state.elements.autoCreateSession?.checked ?? true,
     colorTheme: newTheme
   };
   
   await api.setStorage({ settings: state.currentSettings });
   
+  // 应用新主题
   applyColorTheme(newTheme);
   
   showToast('设置已保存');
@@ -69,12 +70,12 @@ export async function saveSettings() {
  * 打开设置面板
  */
 export function openSettings() {
-  state.elements.settingsModal.classList.add('active');
+  state.elements.settingsModal?.classList.add('active');
 }
 
 /**
  * 关闭设置面板
  */
 export function closeSettings() {
-  state.elements.settingsModal.classList.remove('active');
+  state.elements.settingsModal?.classList.remove('active');
 }
