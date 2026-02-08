@@ -110,19 +110,62 @@ export async function addNode(params) {
 }
 
 /**
- * 打开 URL
+ * 打开 URL - 直接在 popup 中处理，不依赖后台脚本
  * @param {string} url - URL
  * @returns {Promise<{success: boolean}>}
  */
 export async function openUrl(url) {
-  console.log('[MindGit popup] 准备发送 openUrl:', url);
+  console.log('[MindGit popup] 打开 URL:', url);
   try {
-    const result = await chrome.runtime.sendMessage({ action: 'openUrl', url });
-    console.log('[MindGit popup] openUrl 成功:', result);
-    return result;
+    // 先查找是否已有相同 URL 的标签页
+    const allTabs = await chrome.tabs.query({});
+    console.log('[MindGit popup] 所有标签页:', allTabs.map(t => t.url));
+    
+    // 尝试精确匹配
+    let matchedTab = allTabs.find(tab => tab.url === url);
+    
+    // 忽略 hash 匹配
+    if (!matchedTab) {
+      try {
+        const targetUrl = new URL(url);
+        matchedTab = allTabs.find(tab => {
+          if (!tab.url) return false;
+          try {
+            const tabUrl = new URL(tab.url);
+            return tabUrl.hostname === targetUrl.hostname && 
+                   tabUrl.pathname === targetUrl.pathname &&
+                   tabUrl.search === targetUrl.search;
+          } catch (e) {
+            return false;
+          }
+        });
+      } catch (e) {
+        console.error('[MindGit popup] URL 解析失败:', e);
+      }
+    }
+    
+    if (matchedTab) {
+      // 切换到已存在的标签页
+      await chrome.tabs.update(matchedTab.id, { active: true });
+      await chrome.windows.update(matchedTab.windowId, { focused: true });
+      console.log('[MindGit popup] ✓ 切换到已存在标签页:', matchedTab.url);
+    } else {
+      // 创建新标签页
+      await chrome.tabs.create({ url });
+      console.log('[MindGit popup] ✓ 创建新标签页:', url);
+    }
+    
+    return { success: true };
   } catch (e) {
-    console.error('[MindGit popup] openUrl 失败:', e);
-    throw e;
+    console.error('[MindGit popup] 打开 URL 失败:', e);
+    // 如果失败，尝试简单创建新标签页
+    try {
+      await chrome.tabs.create({ url });
+      return { success: true };
+    } catch (e2) {
+      console.error('[MindGit popup] 创建标签页也失败:', e2);
+      return { success: false, error: e.message };
+    }
   }
 }
 
