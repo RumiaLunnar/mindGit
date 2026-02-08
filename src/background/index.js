@@ -701,8 +701,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
   
   if (request.action === 'openUrl') {
-    chrome.tabs.create({ url: request.url });
-    sendResponse({ success: true });
+    // 优先查找是否已有相同 URL 的标签页
+    chrome.tabs.query({ url: request.url }).then(tabs => {
+      if (tabs.length > 0) {
+        // 如果找到，切换到该标签页
+        chrome.tabs.update(tabs[0].id, { active: true });
+        chrome.windows.update(tabs[0].windowId, { focused: true });
+      } else {
+        // 如果没找到，创建新标签页
+        chrome.tabs.create({ url: request.url });
+      }
+      sendResponse({ success: true });
+    });
     return true;
   }
 });

@@ -177,11 +177,11 @@ html {
 
 body {
   width: 420px;
-  height: 640px;
+  height: 600px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
-  overflow-x: hidden;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
@@ -251,13 +251,6 @@ body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  transition: max-height 0.3s ease;
-  max-height: 0;
-  overflow: hidden;
-}
-
-.session-list-container.expanded {
-  max-height: 160px;
 }
 
 .session-list-header {
@@ -269,10 +262,36 @@ body {
   border-bottom: 1px solid var(--border-color);
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .session-list-header:hover {
   background: var(--hover-bg);
+}
+
+.session-list {
+  overflow-y: auto;
+  max-height: 0;
+  transition: max-height 0.3s ease;
+  padding: 0 8px;
+}
+
+.session-list-container.expanded .session-list {
+  max-height: 110px;
+  padding: 8px;
+}
+
+.session-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.session-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.session-list::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 2px;
 }
 
 .session-list-title-wrapper {
@@ -310,25 +329,6 @@ body {
   background: var(--hover-bg);
   padding: 3px 10px;
   border-radius: 12px;
-}
-
-.session-list {
-  overflow-y: auto;
-  max-height: 140px;
-  padding: 8px;
-}
-
-.session-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.session-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.session-list::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 2px;
 }
 
 .session-item {
@@ -419,7 +419,7 @@ body {
   color: var(--danger-color);
 }
 
-/* 空会话状态 - 在列表内 */
+/* 空会话状态 */
 .session-list-empty {
   text-align: center;
   padding: 24px 16px;
