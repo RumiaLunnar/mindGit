@@ -115,7 +115,10 @@ export async function addNode(params) {
  * @returns {Promise<{success: boolean}>}
  */
 export async function openUrl(url) {
-  return await sendMessage({ action: 'openUrl', url });
+  console.log('[MindGit popup] 发送 openUrl 请求:', url);
+  const result = await sendMessage({ action: 'openUrl', url });
+  console.log('[MindGit popup] openUrl 响应:', result);
+  return result;
 }
 
 /**

@@ -26,12 +26,7 @@ const keepAliveInterval = setInterval(() => {
 }, 20000);
 
 // 监听 popup 打开事件
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.action === 'ping') {
-    sendResponse({ pong: true, timestamp: Date.now() });
-    return true;
-  }
-});
+// 注意：只能有一个 onMessage 监听器，所有消息处理都在这里
 
 // 生成唯一ID
 function generateSessionId() {
@@ -501,8 +496,15 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
   await chrome.storage.local.set({ tabToNode, pendingSourceTab });
 });
 
-// 监听来自popup的消息
+// 监听来自popup的消息 - 只能有一个这样的监听器
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('[mindGit] 收到消息:', request.action, request);
+  
+  if (request.action === 'ping') {
+    sendResponse({ pong: true, timestamp: Date.now() });
+    return true;
+  }
+  
   if (request.action === 'getSessions') {
     chrome.storage.local.get(['sessions', 'currentSession']).then(result => {
       // 保证返回有效的数据结构
