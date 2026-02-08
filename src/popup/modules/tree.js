@@ -4,6 +4,7 @@ import { state } from './state.js';
 import * as api from './api.js';
 import { truncateText, generateFaviconUrl } from './utils.js';
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * 加载树形结构
@@ -193,7 +194,7 @@ function createActionButtons(node) {
   
   actions.children[1].onclick = (e) => {
     e.stopPropagation();
-    if (confirm('确定要删除这个节点吗？')) {
+    if (confirm(t('deleteNodeConfirm'))) {
       deleteNode(node.id);
     }
   };
@@ -256,10 +257,10 @@ async function deleteNode(nodeId) {
   const result = await api.deleteNode(state.currentSessionId, nodeId);
   
   if (result.success) {
-    showToast('节点已删除');
+    showToast(t('nodeDeleted'));
     await loadTree(state.currentSessionId);
   } else {
-    showToast('删除失败: ' + (result.error || '未知错误'));
+    showToast(t('deleteFailed', { error: result.error || 'Unknown error' }));
   }
 }
 
@@ -292,7 +293,7 @@ export function expandAll() {
       state.expandedNodes.add(nodeId);
     }
   });
-  showToast('已展开全部');
+  showToast(t('allExpanded'));
 }
 
 /**
@@ -306,5 +307,5 @@ export function collapseAll() {
     el.textContent = '▶';
   });
   state.expandedNodes.clear();
-  showToast('已折叠全部');
+  showToast(t('allCollapsed'));
 }

@@ -6,6 +6,8 @@ import * as theme from './theme.js';
 import * as settings from './settings.js';
 import * as sessionManager from './sessionManager.js';
 import { setupEventListeners } from './events.js';
+import { initI18n, setLang, getCurrentLang } from './i18n.js';
+import { updateAllTexts } from './i18nUI.js';
 
 /**
  * 诊断工具：输出当前状态
@@ -33,11 +35,18 @@ async function init() {
   const rawData = await api.getStorage(['sessions', 'currentSession', 'settings']);
   console.log('[MindGit] Storage 原始数据:', rawData);
   
+  // 加载设置（包含语言设置）
+  await settings.loadSettings();
+  
+  // 初始化国际化
+  const savedLang = rawData.settings?.language || 'zh';
+  await setLang(savedLang);
+  
+  // 更新界面文本
+  updateAllTexts();
+  
   // 加载主题
   await theme.loadTheme();
-  
-  // 加载设置
-  await settings.loadSettings();
   
   // 监听存储变化（在加载数据前注册）
   api.onStorageChanged((changes) => {

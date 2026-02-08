@@ -20,7 +20,8 @@ export const DEFAULT_SETTINGS = {
   showFavicons: true,
   defaultExpand: true,
   autoCreateSession: true,
-  colorTheme: 'default'
+  colorTheme: 'default',
+  language: 'zh'
 };
 
 // 初始化 DOM 元素引用
@@ -52,6 +53,7 @@ export function initElements() {
     showFavicons: document.getElementById('showFavicons'),
     defaultExpand: document.getElementById('defaultExpand'),
     autoCreateSession: document.getElementById('autoCreateSession'),
-    colorTheme: document.getElementById('colorTheme')
+    colorTheme: document.getElementById('colorTheme'),
+    language: document.getElementById('language')
   };
 }

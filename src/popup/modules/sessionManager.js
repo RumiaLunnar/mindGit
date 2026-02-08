@@ -6,6 +6,8 @@ import * as utils from './utils.js';
 import { showToast } from './toast.js';
 import { renderSessionList } from './sessionUI.js';
 import { loadTree, showEmptyState } from './tree.js';
+import { t } from './i18n.js';
+import { getText } from './i18nUI.js';
 
 /**
  * 加载所有会话
@@ -96,11 +98,11 @@ export async function createSession(name) {
     state.expandedNodes.clear();
     state.currentSessionId = result.sessionId;
     await loadSessions();
-    showToast('新会话已创建');
+    showToast(t('sessionCreated'));
     return result.sessionId;
   }
   
-  showToast('创建会话失败');
+  showToast(t('create'));
   return null;
 }
 
@@ -116,10 +118,10 @@ export async function renameSession(sessionId, currentName) {
     const result = await api.renameSession(sessionId, newName.trim());
     
     if (result.success) {
-      showToast('会话已重命名');
+      showToast(t('sessionRenamed'));
       await loadSessions();
     } else {
-      showToast('重命名失败');
+      showToast(t('renameFailed'));
     }
   }
 }
@@ -129,7 +131,7 @@ export async function renameSession(sessionId, currentName) {
  * @param {string} sessionId - 会话 ID
  */
 export async function deleteSession(sessionId) {
-  if (!confirm('确定要删除这个会话吗？此操作不可撤销。')) {
+  if (!confirm(t('confirmDeleteSession'))) {
     return;
   }
   
@@ -141,14 +143,14 @@ export async function deleteSession(sessionId) {
   }
   
   await loadSessions();
-  showToast('会话已删除');
+  showToast(t('sessionDeleted'));
 }
 
 /**
  * 清空所有会话
  */
 export async function clearAllSessions() {
-  if (!confirm('确定要清空所有会话吗？此操作不可撤销。')) {
+  if (!confirm(t('confirmClearAll'))) {
     return;
   }
   
@@ -156,7 +158,7 @@ export async function clearAllSessions() {
   state.expandedNodes.clear();
   state.currentSessionId = null;
   await loadSessions();
-  showToast('已清空所有数据');
+  showToast(t('allDataCleared'));
 }
 
 /**
@@ -173,7 +175,7 @@ async function updateStats() {
   const result = await api.getSessionTree(state.currentSessionId);
   
   if (!result.session) {
-    statsInfo.innerHTML = '💤 无活动会话';
+    statsInfo.innerHTML = `💤 ${getText('noActiveSession')}`;
     return;
   }
   
@@ -181,11 +183,11 @@ async function updateStats() {
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
   
-  statsInfo.innerHTML = `
-    <strong>${utils.escapeHtml(session.name)}</strong> · 
-    <span style="color: var(--primary-color)">${rootCount}</span> 个起点 · 
-    <span style="color: var(--primary-color)">${nodeCount}</span> 个页面
-  `;
+  statsInfo.innerHTML = getText('sessionStats', {
+    name: utils.escapeHtml(session.name),
+    rootCount,
+    nodeCount
+  });
 }
 
 /**
@@ -223,7 +225,7 @@ export async function tryAutoCreateSession() {
       }
       
       await loadSessions();
-      showToast('已自动创建会话并记录当前页面');
+      showToast(t('autoSessionCreated'));
     }
   } catch (e) {
     console.error('[MindGit] 自动创建会话失败:', e);

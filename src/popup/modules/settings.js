@@ -4,6 +4,8 @@ import { state, DEFAULT_SETTINGS } from './state.js';
 import * as api from './api.js';
 import { showToast } from './toast.js';
 import { applyColorTheme } from './theme.js';
+import { t, setLang, getCurrentLang } from './i18n.js';
+import { updateAllTexts } from './i18nUI.js';
 
 /**
  * 加载设置
@@ -16,7 +18,7 @@ export async function loadSettings() {
   };
   
   updateSettingsUI();
-  // 主题在 theme.js 的 loadTheme 中统一应用
+  // 语言和主题的应用在初始化时处理
 }
 
 /**
@@ -29,7 +31,8 @@ function updateSettingsUI() {
     showFavicons,
     defaultExpand,
     autoCreateSession,
-    colorTheme
+    colorTheme,
+    language
   } = state.elements;
   
   if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
@@ -38,14 +41,17 @@ function updateSettingsUI() {
   if (defaultExpand) defaultExpand.checked = state.currentSettings.defaultExpand !== false;
   if (autoCreateSession) autoCreateSession.checked = state.currentSettings.autoCreateSession !== false;
   if (colorTheme) colorTheme.value = state.currentSettings.colorTheme || 'default';
+  if (language) language.value = state.currentSettings.language || 'zh';
 }
 
 /**
  * 保存设置
  */
 export async function saveSettings() {
-  const { colorTheme } = state.elements;
+  const { colorTheme, language } = state.elements;
   const newTheme = colorTheme?.value || 'default';
+  const newLang = language?.value || 'zh';
+  const oldLang = state.currentSettings.language;
   
   state.currentSettings = {
     ...state.currentSettings,
@@ -54,7 +60,8 @@ export async function saveSettings() {
     showFavicons: state.elements.showFavicons?.checked ?? true,
     defaultExpand: state.elements.defaultExpand?.checked ?? true,
     autoCreateSession: state.elements.autoCreateSession?.checked ?? true,
-    colorTheme: newTheme
+    colorTheme: newTheme,
+    language: newLang
   };
   
   await api.setStorage({ settings: state.currentSettings });
@@ -62,7 +69,13 @@ export async function saveSettings() {
   // 应用新主题
   applyColorTheme(newTheme);
   
-  showToast('设置已保存');
+  // 如果语言改变了，更新界面文本
+  if (newLang !== oldLang) {
+    await setLang(newLang);
+    updateAllTexts();
+  }
+  
+  showToast(t('settingsSaved'));
   return true;
 }
 

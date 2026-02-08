@@ -2,6 +2,7 @@
 
 import { state } from './state.js';
 import { escapeHtml, formatDate } from './utils.js';
+import { t } from './i18n.js';
 
 /**
  * 渲染会话列表
@@ -10,7 +11,7 @@ import { escapeHtml, formatDate } from './utils.js';
 export function renderSessionList(sessions) {
   const { sessionList, sessionCount } = state.elements;
   
-  sessionCount.textContent = `${sessions.length} 个`;
+  sessionCount.textContent = t('sessionsCount', { count: sessions.length });
   sessionList.innerHTML = '';
   
   if (sessions.length === 0) {
