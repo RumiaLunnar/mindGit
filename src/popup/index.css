@@ -1,12 +1,6 @@
-/* mindGit - 浏览脉络追踪器 */
+/* MindGit - 浏览脉络追踪器 */
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
-/* 亮色主题（默认） */
+/* ========== CSS 变量 ========== */
 :root {
   --primary-color: #4a90d9;
   --primary-hover: #357abd;
@@ -170,14 +164,15 @@
   --depth-3-color: #ebdfd0;
 }
 
-/* Chrome 扩展 popup 圆角 - 需要同时设置 html 和 body */
-html, body {
-  border-radius: 12px;
-  overflow: hidden;
+/* ========== 基础样式 ========== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html {
-  background: transparent;
+  background: var(--bg-color);
 }
 
 body {
@@ -189,18 +184,17 @@ body {
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* 头部 */
+/* 头部 - 使用纯色而非渐变，更简洁 */
 .header {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+  background: var(--primary-color);
   color: white;
-  padding: 16px 20px;
+  padding: 14px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: var(--shadow);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
@@ -250,24 +244,24 @@ body {
   background: rgba(231, 76, 60, 0.35);
 }
 
-/* 会话列表 */
+/* 会话列表 - 更简洁的设计 */
 .session-list-container {
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-  max-height: 180px;
+  max-height: 160px;
   display: flex;
   flex-direction: column;
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .session-list-header {
-  padding: 12px 20px;
+  padding: 10px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
-  background: linear-gradient(to right, var(--card-bg), var(--hover-bg));
 }
 
 .session-list-title {
@@ -306,13 +300,13 @@ body {
 .session-item {
   display: flex;
   align-items: center;
-  padding: 10px 12px;
-  margin-bottom: 6px;
-  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--bg-color);
-  border: 1.5px solid transparent;
+  transition: all 0.15s ease;
+  background: transparent;
+  border: none;
   position: relative;
 }
 
@@ -322,14 +316,10 @@ body {
 
 .session-item:hover {
   background: var(--hover-bg);
-  border-color: var(--primary-color);
-  transform: translateX(2px);
 }
 
 .session-item.active {
   background: var(--active-bg);
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
 }
 
 .session-item-icon {
@@ -418,27 +408,22 @@ body {
   color: var(--text-muted);
 }
 
-/* 统计栏 */
+/* 统计栏 - 简洁设计 */
 .stats-bar {
-  padding: 10px 20px;
-  background: linear-gradient(to right, var(--bg-color), var(--hover-bg));
+  padding: 8px 18px;
+  background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   font-size: 12px;
   color: var(--text-secondary);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   flex-shrink: 0;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-}
-
-.stats-bar::before {
-  content: '📊';
 }
 
 /* 树形容器 */
 .tree-container {
-  padding: 16px 12px;
+  padding: 12px;
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
@@ -516,25 +501,25 @@ body {
 .node-content {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.15s ease;
   margin-bottom: 2px;
   background: var(--card-bg);
-  border: 1px solid transparent;
+  border: 1px solid var(--border-color);
   position: relative;
   z-index: 2;
 }
 
 .node-content:hover {
   background: var(--hover-bg);
+  border-color: var(--primary-color);
 }
 
 .node-content.active {
   background: var(--active-bg);
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.15);
 }
 
 /* 展开/折叠按钮 */
@@ -672,7 +657,7 @@ body {
 
 /* 底部 */
 .footer {
-  padding: 12px 20px;
+  padding: 10px 18px;
   background: var(--card-bg);
   border-top: 1px solid var(--border-color);
   display: flex;
@@ -680,7 +665,6 @@ body {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .text-btn {
@@ -709,24 +693,23 @@ body {
 }
 
 .primary-btn {
-  padding: 10px 24px;
+  padding: 8px 20px;
   border: none;
-  background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+  background: var(--primary-color);
   color: white;
-  font-size: 14px;
+  font-size: 13px;
   cursor: pointer;
-  border-radius: 10px;
-  transition: all 0.2s;
+  border-radius: 6px;
+  transition: all 0.15s;
   font-weight: 500;
 }
 
 .primary-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-hover);
+  background: var(--primary-hover);
 }
 
 .primary-btn:active {
-  transform: translateY(0);
+  opacity: 0.9;
 }
 
 /* 模态框 */
