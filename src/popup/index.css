@@ -177,7 +177,7 @@ html {
 
 body {
   width: 420px;
-  height: 580px;
+  height: 640px;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
@@ -244,15 +244,20 @@ body {
   background: rgba(231, 76, 60, 0.35);
 }
 
-/* 会话列表 - 更简洁的设计 */
+/* 会话列表 - 可展开收起 */
 .session-list-container {
   background: var(--card-bg);
   border-bottom: 1px solid var(--border-color);
   flex-shrink: 0;
-  max-height: 160px;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
+  transition: max-height 0.3s ease;
+  max-height: 0;
+  overflow: hidden;
+}
+
+.session-list-container.expanded {
+  max-height: 160px;
 }
 
 .session-list-header {
@@ -262,6 +267,35 @@ body {
   align-items: center;
   background: var(--bg-color);
   border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  user-select: none;
+}
+
+.session-list-header:hover {
+  background: var(--hover-bg);
+}
+
+.session-list-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-list-toggle {
+  font-size: 10px;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+  display: inline-block;
+  width: 12px;
+  text-align: center;
+}
+
+.session-list-container.expanded .session-list-toggle {
+  transform: rotate(0deg);
+}
+
+.session-list-container:not(.expanded) .session-list-toggle {
+  transform: rotate(-90deg);
 }
 
 .session-list-title {

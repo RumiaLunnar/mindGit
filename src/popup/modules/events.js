@@ -9,6 +9,20 @@ import * as theme from './theme.js';
 import { showToast } from './toast.js';
 
 /**
+ * 切换会话列表展开/收起状态
+ */
+function toggleSessionList() {
+  const { sessionListContainer } = state.elements;
+  state.isSessionListExpanded = !state.isSessionListExpanded;
+  
+  if (state.isSessionListExpanded) {
+    sessionListContainer.classList.add('expanded');
+  } else {
+    sessionListContainer.classList.remove('expanded');
+  }
+}
+
+/**
  * 设置所有事件监听器
  */
 export function setupEventListeners() {
@@ -22,7 +36,7 @@ export function setupEventListeners() {
  * 设置头部按钮事件
  */
 function setupHeaderEvents() {
-  const { themeBtn, refreshBtn, newSessionBtn, settingsBtn } = state.elements;
+  const { themeBtn, refreshBtn, newSessionBtn, settingsBtn, sessionListHeader } = state.elements;
   
   // 主题切换
   themeBtn.addEventListener('click', theme.toggleTheme);
@@ -40,6 +54,9 @@ function setupHeaderEvents() {
   
   // 设置
   settingsBtn.addEventListener('click', settings.openSettings);
+  
+  // 会话列表展开/收起
+  sessionListHeader.addEventListener('click', toggleSessionList);
 }
 
 /**

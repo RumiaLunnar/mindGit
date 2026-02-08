@@ -8,7 +8,8 @@ export const state = {
   lastDataHash: null,
   isDarkMode: false,
   refreshTimeout: null,
-  elements: {}
+  elements: {},
+  isSessionListExpanded: true
 };
 
 // 默认设置
@@ -26,6 +27,8 @@ export const DEFAULT_SETTINGS = {
 export function initElements() {
   state.elements = {
     themeBtn: document.getElementById('themeBtn'),
+    sessionListContainer: document.getElementById('sessionListContainer'),
+    sessionListHeader: document.getElementById('sessionListHeader'),
     sessionList: document.getElementById('sessionList'),
     sessionCount: document.getElementById('sessionCount'),
     treeContainer: document.getElementById('treeContainer'),
