@@ -702,14 +702,41 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'openUrl') {
     // 优先查找是否已有相同 URL 的标签页
-    chrome.tabs.query({ url: request.url }).then(tabs => {
-      if (tabs.length > 0) {
+    // 注意：chrome.tabs.query 的 url 参数需要完全匹配
+    // 我们需要查询所有标签页然后自己比较
+    chrome.tabs.query({}).then(allTabs => {
+      // 尝试精确匹配
+      let matchedTab = allTabs.find(tab => tab.url === request.url);
+      
+      // 如果没有精确匹配，尝试忽略 hash 匹配
+      if (!matchedTab) {
+        try {
+          const targetUrl = new URL(request.url);
+          matchedTab = allTabs.find(tab => {
+            if (!tab.url) return false;
+            try {
+              const tabUrl = new URL(tab.url);
+              return tabUrl.hostname === targetUrl.hostname && 
+                     tabUrl.pathname === targetUrl.pathname &&
+                     tabUrl.search === targetUrl.search;
+            } catch (e) {
+              return false;
+            }
+          });
+        } catch (e) {
+          // URL 解析失败，继续使用精确匹配结果（应该是 undefined）
+        }
+      }
+      
+      if (matchedTab) {
         // 如果找到，切换到该标签页
-        chrome.tabs.update(tabs[0].id, { active: true });
-        chrome.windows.update(tabs[0].windowId, { focused: true });
+        chrome.tabs.update(matchedTab.id, { active: true });
+        chrome.windows.update(matchedTab.windowId, { focused: true });
+        console.log('[mindGit] 切换到已存在标签页:', matchedTab.url);
       } else {
         // 如果没找到，创建新标签页
         chrome.tabs.create({ url: request.url });
+        console.log('[mindGit] 创建新标签页:', request.url);
       }
       sendResponse({ success: true });
     });
