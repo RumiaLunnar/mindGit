@@ -66,6 +66,14 @@ export function initElements() {
     confirmRenameSession: document.getElementById('confirmRenameSession'),
     renameSessionInput: document.getElementById('renameSessionInput'),
     renameSessionLabel: document.getElementById('renameSessionLabel'),
+    // 快照
+    snapshotModal: document.getElementById('snapshotModal'),
+    closeSnapshot: document.getElementById('closeSnapshot'),
+    confirmSnapshot: document.getElementById('confirmSnapshot'),
+    snapshotInput: document.getElementById('snapshotInput'),
+    snapshotLabel: document.getElementById('snapshotLabel'),
+    createSnapshotBtn: document.getElementById('createSnapshotBtn'),
+    snapshotList: document.getElementById('snapshotList'),
     // 设置项
     maxSessions: document.getElementById('maxSessions'),
     autoClean: document.getElementById('autoClean'),

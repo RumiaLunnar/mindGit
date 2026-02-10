@@ -58,6 +58,17 @@ const TRANSLATIONS = {
     noSessionToExport: '请先选择一个会话',
     sessionNotFound: '会话不存在',
     
+    // 快照
+    snapshot: '快照',
+    createSnapshot: '创建快照',
+    snapshotNamePlaceholder: '快照名称...',
+    noSnapshots: '暂无快照',
+    restoreSnapshot: '恢复',
+    deleteSnapshot: '删除',
+    snapshotCreated: '快照已创建',
+    snapshotRestored: '快照已恢复',
+    snapshotDeleted: '快照已删除',
+    
     // 设置面板
     settingsTitle: '设置',
     maxSessions: '最大保存会话数',
@@ -170,6 +181,17 @@ const TRANSLATIONS = {
     exportSuccess: 'Exported as {format}',
     noSessionToExport: 'Please select a session first',
     sessionNotFound: 'Session not found',
+    
+    // Snapshot
+    snapshot: 'Snapshot',
+    createSnapshot: 'Create Snapshot',
+    snapshotNamePlaceholder: 'Snapshot name...',
+    noSnapshots: 'No snapshots yet',
+    restoreSnapshot: 'Restore',
+    deleteSnapshot: 'Delete',
+    snapshotCreated: 'Snapshot created',
+    snapshotRestored: 'Snapshot restored',
+    snapshotDeleted: 'Snapshot deleted',
     
     // Settings Panel
     settingsTitle: 'Settings',

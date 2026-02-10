@@ -128,6 +128,13 @@
           <span id="labelExport">导出会话</span>
           <button id="exportSettingBtn" class="secondary-btn" data-i18n="exportCurrentSessionBtn">📤 导出当前会话</button>
         </div>
+        <div class="setting-item setting-item-full">
+          <span id="labelSnapshot">快照</span>
+          <button id="createSnapshotBtn" class="secondary-btn" data-i18n="createSnapshot">📸 创建快照</button>
+        </div>
+        <div class="setting-item setting-item-full snapshot-list-container">
+          <div class="snapshot-list" id="snapshotList"></div>
+        </div>
       </div>
       <div class="modal-footer">
         <button id="saveSettings" class="primary-btn" data-i18n="save">保存设置</button>
@@ -169,6 +176,25 @@
       </div>
       <div class="modal-footer">
         <button id="confirmRenameSession" class="primary-btn" data-i18n="save">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建快照对话框 -->
+  <div class="modal" id="snapshotModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="snapshotTitle">📸 创建快照</h2>
+        <button class="close-btn" id="closeSnapshot">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label id="snapshotLabel">快照名称</label>
+          <input type="text" id="snapshotInput" placeholder="快照名称...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="confirmSnapshot" class="primary-btn" data-i18n="createSnapshot">创建快照</button>
       </div>
     </div>
   </div>

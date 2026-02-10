@@ -60,6 +60,7 @@ chrome.runtime.onInstalled.addListener((details) => {
       currentSession: null,
       tabToNode: {},
       pendingSourceTab: {},
+      snapshots: {},
       settings: {
         maxSessions: 50,
         maxNodesPerSession: 500,
@@ -79,6 +80,12 @@ chrome.runtime.onInstalled.addListener((details) => {
         settings.autoCreateSession = true;
       }
       chrome.storage.local.set({ settings });
+    });
+    // 确保 snapshots 存在
+    chrome.storage.local.get('snapshots').then(result => {
+      if (!result.snapshots) {
+        chrome.storage.local.set({ snapshots: {} });
+      }
     });
     console.log('[mindGit] 扩展已更新，保留现有数据');
   }
@@ -697,6 +704,82 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       chrome.storage.local.set({ sessions, tabToNode }).then(() => {
         sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+  
+  // 快照相关 API
+  if (request.action === 'createSnapshot') {
+    chrome.storage.local.get(['sessions', 'snapshots']).then(result => {
+      const sessions = result.sessions || {};
+      const snapshots = result.snapshots || {};
+      
+      const snapshotId = `snapshot_${Date.now()}`;
+      const snapshot = {
+        id: snapshotId,
+        name: request.name || `Snapshot ${new Date().toLocaleString()}`,
+        createdAt: Date.now(),
+        sessionId: request.sessionId,
+        sessionData: JSON.parse(JSON.stringify(sessions[request.sessionId] || {}))
+      };
+      
+      snapshots[snapshotId] = snapshot;
+      
+      chrome.storage.local.set({ snapshots }).then(() => {
+        sendResponse({ success: true, snapshotId });
+      });
+    });
+    return true;
+  }
+  
+  if (request.action === 'getSnapshots') {
+    chrome.storage.local.get('snapshots').then(result => {
+      sendResponse({ snapshots: result.snapshots || {} });
+    });
+    return true;
+  }
+  
+  if (request.action === 'deleteSnapshot') {
+    chrome.storage.local.get('snapshots').then(result => {
+      const snapshots = result.snapshots || {};
+      delete snapshots[request.snapshotId];
+      
+      chrome.storage.local.set({ snapshots }).then(() => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+  
+  if (request.action === 'restoreSnapshot') {
+    chrome.storage.local.get(['sessions', 'snapshots']).then(result => {
+      const sessions = result.sessions || {};
+      const snapshots = result.snapshots || {};
+      const snapshot = snapshots[request.snapshotId];
+      
+      if (!snapshot) {
+        sendResponse({ success: false, error: '快照不存在' });
+        return;
+      }
+      
+      // 恢复会话数据
+      const newSessionId = generateSessionId();
+      const restoredSession = {
+        ...JSON.parse(JSON.stringify(snapshot.sessionData)),
+        id: newSessionId,
+        name: `${snapshot.sessionData.name || '恢复的会话'} (来自快照)`,
+        restoredFrom: snapshot.id,
+        restoredAt: Date.now()
+      };
+      
+      sessions[newSessionId] = restoredSession;
+      
+      chrome.storage.local.set({ 
+        sessions,
+        currentSession: newSessionId
+      }).then(() => {
+        sendResponse({ success: true, sessionId: newSessionId });
       });
     });
     return true;

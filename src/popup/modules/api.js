@@ -206,3 +206,39 @@ export function onStorageChanged(callback) {
     }
   });
 }
+
+/**
+ * 创建快照
+ * @param {string} sessionId - 会话 ID
+ * @param {string} name - 快照名称
+ * @returns {Promise<{success: boolean, snapshotId: string}>}
+ */
+export async function createSnapshot(sessionId, name) {
+  return await sendMessage({ action: 'createSnapshot', sessionId, name });
+}
+
+/**
+ * 获取所有快照
+ * @returns {Promise<{snapshots: Object}>}
+ */
+export async function getSnapshots() {
+  return await sendMessage({ action: 'getSnapshots' });
+}
+
+/**
+ * 删除快照
+ * @param {string} snapshotId - 快照 ID
+ * @returns {Promise<{success: boolean}>}
+ */
+export async function deleteSnapshot(snapshotId) {
+  return await sendMessage({ action: 'deleteSnapshot', snapshotId });
+}
+
+/**
+ * 恢复快照
+ * @param {string} snapshotId - 快照 ID
+ * @returns {Promise<{success: boolean, sessionId: string}>}
+ */
+export async function restoreSnapshot(snapshotId) {
+  return await sendMessage({ action: 'restoreSnapshot', snapshotId });
+}
