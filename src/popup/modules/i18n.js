@@ -91,6 +91,12 @@ const TRANSLATIONS = {
     // 排序选项
     sortMode: '节点排序',
     export: '导出会话',
+    
+    // 视图模式
+    viewMode: '视图模式',
+    treeView: '树形视图',
+    timelineView: '时间线视图',
+    
     smartSort: '智能综合排序',
     sortByTime: '最近访问优先',
     sortByChildren: '子节点数量优先',
@@ -215,6 +221,12 @@ const TRANSLATIONS = {
     // Sort Options
     sortMode: 'Node Sorting',
     export: 'Export Session',
+    
+    // View Mode
+    viewMode: 'View Mode',
+    treeView: 'Tree View',
+    timelineView: 'Timeline View',
+    
     smartSort: 'Smart Sort',
     sortByTime: 'Recent First',
     sortByChildren: 'Most Children First',

@@ -44,7 +44,11 @@ export function updateAllTexts() {
   updateElement('labelLanguage', t('language'));
   updateElement('labelColorTheme', t('colorTheme'));
   updateElement('labelSortMode', t('sortMode'));
-  updateElement('labelExport', t('export'));
+  updateElement('labelViewMode', t('viewMode'));
+  updateElement('labelExport', t('export'));  
+  // 视图选项
+  updateElement('viewTree', t('treeView'));
+  updateElement('viewTimeline', t('timelineView'));
   
   // 搜索对话框
   updateElement('searchTitle', `🔍 ${t('search')}`);

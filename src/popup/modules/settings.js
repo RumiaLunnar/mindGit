@@ -33,7 +33,8 @@ function updateSettingsUI() {
     autoCreateSession,
     colorTheme,
     language,
-    sortMode
+    sortMode,
+    viewMode
   } = state.elements;
   
   if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
@@ -44,18 +45,21 @@ function updateSettingsUI() {
   if (colorTheme) colorTheme.value = state.currentSettings.colorTheme || 'default';
   if (language) language.value = state.currentSettings.language || 'zh';
   if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
+  if (viewMode) viewMode.value = state.currentSettings.viewMode || 'tree';
 }
 
 /**
  * 保存设置
  */
 export async function saveSettings() {
-  const { colorTheme, language, sortMode } = state.elements;
+  const { colorTheme, language, sortMode, viewMode } = state.elements;
   const newTheme = colorTheme?.value || 'default';
   const newLang = language?.value || 'zh';
   const newSortMode = sortMode?.value || 'smart';
+  const newViewMode = viewMode?.value || 'tree';
   const oldLang = state.currentSettings.language;
   const oldSortMode = state.currentSettings.sortMode;
+  const oldViewMode = state.currentSettings.viewMode || 'tree';
   
   state.currentSettings = {
     ...state.currentSettings,
@@ -66,7 +70,8 @@ export async function saveSettings() {
     autoCreateSession: state.elements.autoCreateSession?.checked ?? true,
     colorTheme: newTheme,
     language: newLang,
-    sortMode: newSortMode
+    sortMode: newSortMode,
+    viewMode: newViewMode
   };
   
   await api.setStorage({ settings: state.currentSettings });
@@ -84,6 +89,12 @@ export async function saveSettings() {
   if (newSortMode !== oldSortMode && state.currentSessionId) {
     const { loadTree } = await import('./tree.js');
     await loadTree(state.currentSessionId);
+  }
+  
+  // 如果视图模式改变了，切换视图
+  if (newViewMode !== oldViewMode && state.currentSessionId) {
+    const { loadSessionView } = await import('./viewManager.js');
+    await loadSessionView(state.currentSessionId);
   }
   
   showToast(t('settingsSaved'));

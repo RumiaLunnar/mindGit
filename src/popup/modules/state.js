@@ -22,7 +22,8 @@ export const DEFAULT_SETTINGS = {
   autoCreateSession: true,
   colorTheme: 'default',
   language: 'zh',
-  sortMode: 'smart'  // 默认智能排序
+  sortMode: 'smart',  // 默认智能排序
+  viewMode: 'tree'    // 默认树形视图
 };
 
 // 初始化 DOM 元素引用
@@ -74,6 +75,7 @@ export function initElements() {
     autoCreateSession: document.getElementById('autoCreateSession'),
     colorTheme: document.getElementById('colorTheme'),
     language: document.getElementById('language'),
-    sortMode: document.getElementById('sortMode')
+    sortMode: document.getElementById('sortMode'),
+    viewMode: document.getElementById('viewMode')
   };
 }

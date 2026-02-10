@@ -1369,50 +1369,80 @@ body {
   font-size: 11px;
 }
 
-/* 快照样式 */
-.snapshot-list-container {
-  max-height: 200px;
-  overflow-y: auto;
+/* 时间线视图样式 */
+.timeline-wrapper {
+  padding: 12px 16px;
 }
 
-.snapshot-list {
+.timeline-date-group {
+  margin-bottom: 20px;
+}
+
+.timeline-date-header {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 12px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-color);
+  z-index: 10;
+}
+
+.timeline-nodes-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.snapshot-empty {
+.timeline-node {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
-  color: var(--text-muted);
-  font-size: 13px;
-  text-align: center;
-}
-
-.snapshot-empty-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
-  opacity: 0.5;
-}
-
-.snapshot-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
   padding: 10px 12px;
-  background: var(--hover-bg);
-  border-radius: 8px;
+  background: var(--card-bg);
+  border-radius: 10px;
   border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.snapshot-info {
+.timeline-node:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+  transform: translateX(4px);
+}
+
+.timeline-node-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  min-width: 45px;
+  padding-top: 2px;
+}
+
+.timeline-node-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.timeline-node-favicon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.timeline-node-info {
   flex: 1;
   min-width: 0;
 }
 
-.snapshot-name {
+.timeline-node-title {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
@@ -1421,40 +1451,20 @@ body {
   text-overflow: ellipsis;
 }
 
-.snapshot-meta {
+.timeline-node-url {
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-top: 2px;
 }
 
-.snapshot-actions {
-  display: flex;
-  gap: 4px;
-}
-
-.snapshot-btn {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.snapshot-btn:hover {
-  background: var(--card-bg);
-}
-
-.snapshot-btn.restore:hover {
-  color: var(--success-color);
-}
-
-.snapshot-btn.delete:hover {
-  color: var(--danger-color);
+.timeline-node-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 10px;
+  flex-shrink: 0;
 }

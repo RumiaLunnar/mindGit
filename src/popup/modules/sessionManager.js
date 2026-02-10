@@ -6,6 +6,7 @@ import * as utils from './utils.js';
 import { showToast } from './toast.js';
 import { renderSessionList } from './sessionUI.js';
 import { loadTree, showEmptyState } from './tree.js';
+import { loadSessionView } from './viewManager.js';
 import { t } from './i18n.js';
 import { getText } from './i18nUI.js';
 
@@ -51,7 +52,7 @@ export async function loadSessions() {
     renderSessionList(sortedSessions);
     
     if (state.currentSessionId && state.currentSessions[state.currentSessionId]) {
-      await loadTree(state.currentSessionId);
+      await loadSessionView(state.currentSessionId);
     } else {
       showEmptyState();
     }
@@ -83,7 +84,7 @@ export async function switchToSession(sessionId) {
     .sort((a, b) => b.startTime - a.startTime);
   renderSessionList(sortedSessions);
   
-  await loadTree(sessionId);
+  await loadSessionView(sessionId);
   await updateStats();
 }
 
