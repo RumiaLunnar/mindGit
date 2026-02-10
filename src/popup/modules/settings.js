@@ -87,8 +87,8 @@ export async function saveSettings() {
   
   // 如果排序方式改变了，重新加载树形结构
   if (newSortMode !== oldSortMode && state.currentSessionId) {
-    const { loadTree } = await import('./tree.js');
-    await loadTree(state.currentSessionId);
+    const { loadSessionView } = await import('./viewManager.js');
+    await loadSessionView(state.currentSessionId);
   }
   
   // 如果视图模式改变了，切换视图

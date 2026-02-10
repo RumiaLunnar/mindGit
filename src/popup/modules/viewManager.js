@@ -33,16 +33,44 @@ async function loadTimelineView(sessionId) {
   }
   
   const session = result.session;
-  const allNodes = Object.values(session.allNodes);
   
-  // 按时间排序
-  const sortedNodes = allNodes.sort((a, b) => b.timestamp - a.timestamp);
+  // 构建节点路径映射
+  const nodePaths = buildNodePaths(session);
+  
+  // 获取所有节点并按时间排序
+  const allNodes = Object.values(session.allNodes)
+    .filter(node => node.timestamp) // 过滤掉没有时间戳的
+    .sort((a, b) => b.timestamp - a.timestamp);
   
   // 按日期分组
-  const groupedNodes = groupNodesByDate(sortedNodes);
+  const groupedNodes = groupNodesByDate(allNodes);
   
   // 渲染时间线
-  renderTimeline(groupedNodes);
+  renderTimeline(groupedNodes, nodePaths, session);
+}
+
+/**
+ * 构建节点路径映射
+ * @param {Object} session - 会话数据
+ * @returns {Map} 节点ID到路径的映射
+ */
+function buildNodePaths(session) {
+  const paths = new Map();
+  
+  function buildPath(nodeId, path) {
+    const node = session.allNodes[nodeId];
+    if (!node) return;
+    
+    const currentPath = [...path, node];
+    paths.set(nodeId, currentPath);
+    
+    if (node.children) {
+      node.children.forEach(childId => buildPath(childId, currentPath));
+    }
+  }
+  
+  session.rootNodes.forEach(rootId => buildPath(rootId, []));
+  return paths;
 }
 
 /**
@@ -55,12 +83,23 @@ function groupNodesByDate(nodes) {
   
   nodes.forEach(node => {
     const date = new Date(node.timestamp);
-    const dateKey = date.toLocaleDateString('zh-CN', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric',
-      weekday: 'short'
-    });
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    let dateKey;
+    if (isSameDay(date, today)) {
+      dateKey = '今天';
+    } else if (isSameDay(date, yesterday)) {
+      dateKey = '昨天';
+    } else {
+      dateKey = date.toLocaleDateString('zh-CN', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        weekday: 'short'
+      });
+    }
     
     if (!groups[dateKey]) {
       groups[dateKey] = [];
@@ -76,17 +115,38 @@ function groupNodesByDate(nodes) {
 }
 
 /**
+ * 判断是否是同一天
+ */
+function isSameDay(date1, date2) {
+  return date1.getFullYear() === date2.getFullYear() &&
+         date1.getMonth() === date2.getMonth() &&
+         date1.getDate() === date2.getDate();
+}
+
+/**
  * 渲染时间线
  * @param {Array} groupedNodes - 分组后的节点
+ * @param {Map} nodePaths - 节点路径映射
+ * @param {Object} session - 会话数据
  */
-function renderTimeline(groupedNodes) {
+function renderTimeline(groupedNodes, nodePaths, session) {
   const container = state.elements.treeContainer;
   
   const timelineHtml = document.createElement('div');
   timelineHtml.className = 'timeline-wrapper';
   
+  // 添加统计信息
+  const totalNodes = Object.keys(session.allNodes).length;
+  const statsEl = document.createElement('div');
+  statsEl.className = 'timeline-stats';
+  statsEl.innerHTML = `
+    <span class="timeline-stats-item">共 ${totalNodes} 个页面</span>
+    <span class="timeline-stats-item">${groupedNodes.length} 天的记录</span>
+  `;
+  timelineHtml.appendChild(statsEl);
+  
   groupedNodes.forEach(group => {
-    const dateGroup = createDateGroup(group);
+    const dateGroup = createDateGroup(group, nodePaths, session);
     timelineHtml.appendChild(dateGroup);
   });
   
@@ -97,16 +157,30 @@ function renderTimeline(groupedNodes) {
 /**
  * 创建日期分组
  * @param {Object} group - 日期分组
+ * @param {Map} nodePaths - 节点路径映射
+ * @param {Object} session - 会话数据
  * @returns {HTMLElement}
  */
-function createDateGroup(group) {
+function createDateGroup(group, nodePaths, session) {
   const groupEl = document.createElement('div');
   groupEl.className = 'timeline-date-group';
+  
+  // 计算这天的统计
+  const uniqueHosts = new Set(group.nodes.map(n => {
+    try {
+      return new URL(n.url).hostname;
+    } catch {
+      return '';
+    }
+  })).size;
   
   // 日期标题
   const dateHeader = document.createElement('div');
   dateHeader.className = 'timeline-date-header';
-  dateHeader.textContent = group.date;
+  dateHeader.innerHTML = `
+    <span class="timeline-date-text">${group.date}</span>
+    <span class="timeline-date-count">${group.nodes.length} 页面 · ${uniqueHosts} 个网站</span>
+  `;
   groupEl.appendChild(dateHeader);
   
   // 节点列表
@@ -114,7 +188,7 @@ function createDateGroup(group) {
   nodesList.className = 'timeline-nodes-list';
   
   group.nodes.forEach(node => {
-    const nodeEl = createTimelineNode(node);
+    const nodeEl = createTimelineNode(node, nodePaths);
     nodesList.appendChild(nodeEl);
   });
   
@@ -125,9 +199,10 @@ function createDateGroup(group) {
 /**
  * 创建时间线节点
  * @param {Object} node - 节点数据
+ * @param {Map} nodePaths - 节点路径映射
  * @returns {HTMLElement}
  */
-function createTimelineNode(node) {
+function createTimelineNode(node, nodePaths) {
   const nodeEl = document.createElement('div');
   nodeEl.className = 'timeline-node';
   
@@ -138,15 +213,33 @@ function createTimelineNode(node) {
   
   const faviconUrl = node.favIconUrl || `https://www.google.com/s2/favicons?domain=${new URL(node.url).hostname}`;
   
+  // 获取浏览路径
+  const path = nodePaths.get(node.id) || [];
+  const pathHtml = path.length > 1 ? `
+    <div class="timeline-node-path">
+      ${path.slice(0, -1).map(n => `<span class="path-item">${escapeHtml(truncateText(n.title || '无标题', 15))}</span>`).join('<span class="path-arrow">→</span>')}
+    </div>
+  ` : '';
+  
+  // 判断是根节点还是子节点
+  const isRoot = path.length === 1;
+  const nodeTypeIcon = isRoot ? '🔍' : '→';
+  
   nodeEl.innerHTML = `
-    <div class="timeline-node-time">${time}</div>
+    <div class="timeline-node-indicator">
+      <span class="timeline-node-type">${nodeTypeIcon}</span>
+      <span class="timeline-node-time">${time}</span>
+    </div>
     <div class="timeline-node-content">
-      <img class="timeline-node-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">
-      <div class="timeline-node-info">
-        <div class="timeline-node-title" title="${escapeHtml(node.title || '')}">${escapeHtml(node.title || '无标题')}</div>
-        <div class="timeline-node-url">${escapeHtml(truncateUrl(node.url))}</div>
+      ${pathHtml}
+      <div class="timeline-node-main">
+        <img class="timeline-node-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">
+        <div class="timeline-node-info">
+          <div class="timeline-node-title" title="${escapeHtml(node.title || '')}">${escapeHtml(node.title || '无标题')}</div>
+          <div class="timeline-node-url">${escapeHtml(truncateUrl(node.url))}</div>
+        </div>
+        ${node.visitCount > 1 ? `<span class="timeline-node-badge" title="访问 ${node.visitCount} 次">${node.visitCount}</span>` : ''}
       </div>
-      ${node.visitCount > 1 ? `<span class="timeline-node-badge">${node.visitCount}</span>` : ''}
     </div>
   `;
   
@@ -181,13 +274,21 @@ function escapeHtml(text) {
 }
 
 /**
+ * 截断文本
+ */
+function truncateText(text, maxLength) {
+  if (!text) return '';
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+}
+
+/**
  * 截断 URL
  */
 function truncateUrl(url) {
   try {
     const urlObj = new URL(url);
-    return urlObj.hostname + urlObj.pathname;
+    return urlObj.hostname;
   } catch {
-    return url.length > 50 ? url.substring(0, 50) + '...' : url;
+    return url.length > 40 ? url.substring(0, 40) + '...' : url;
   }
 }
