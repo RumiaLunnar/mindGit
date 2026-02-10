@@ -31,6 +31,9 @@ export function updateAllTexts() {
   updateElementText('expandAllBtn', t('expandAll'));
   updateElementText('collapseAllBtn', t('collapseAll'));
   
+  // 设置面板按钮
+  updateElementText('exportSettingBtn', t('exportCurrentSessionBtn'));
+  
   // 设置面板
   updateElement('settingsTitle', `⚙️ ${t('settingsTitle')}`);
   updateElement('labelMaxSessions', t('maxSessions'));

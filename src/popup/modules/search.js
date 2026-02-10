@@ -128,9 +128,9 @@ function performSearch(query) {
   renderSearchResults();
   updateSearchNav();
   
-  // 自动导航到第一个结果
+  // 自动导航到第一个结果（不关闭弹窗，仅高亮）
   if (currentResultIndex >= 0) {
-    navigateToResult(currentResultIndex);
+    navigateToResult(currentResultIndex, false);
   }
 }
 
@@ -233,13 +233,16 @@ function navigateToNextResult() {
 /**
  * 导航到指定结果
  * @param {number} index 结果索引
+ * @param {boolean} shouldCloseModal 是否关闭弹窗（默认 true）
  */
-function navigateToResult(index) {
+function navigateToResult(index, shouldCloseModal = true) {
   const result = searchResults[index];
   if (!result) return;
   
-  // 关闭搜索弹窗
-  closeSearchModal();
+  // 关闭搜索弹窗（仅在用户点击时）
+  if (shouldCloseModal) {
+    closeSearchModal();
+  }
   
   // 如果是会话级别的搜索
   if (result.type === 'session') {

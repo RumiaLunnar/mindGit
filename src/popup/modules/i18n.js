@@ -48,6 +48,7 @@ const TRANSLATIONS = {
     noSearchResults: '未找到匹配的会话或节点',
     
     // 导出
+    exportCurrentSessionBtn: '导出当前会话',
     exportFormatTitle: '选择导出格式',
     exportMarkdown: 'Markdown',
     exportMarkdownDesc: '纯文本格式，适合导入到笔记软件',
@@ -155,6 +156,7 @@ const TRANSLATIONS = {
     noSearchResults: 'No matching sessions or nodes found',
     
     // Export
+    exportCurrentSessionBtn: 'Export Current Session',
     exportFormatTitle: 'Choose Export Format',
     exportMarkdown: 'Markdown',
     exportMarkdownDesc: 'Plain text format, perfect for note apps',
