@@ -521,31 +521,62 @@ body {
 
 .tree-node {
   position: relative;
+  animation: nodeFadeIn 0.3s ease-out;
 }
 
-/* 子节点容器 */
+/* 节点淡入动画 */
+@keyframes nodeFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 子节点递归动画 - 每层有延迟 */
+.children-container .tree-node {
+  animation-delay: 0.05s;
+}
+
+.children-container .children-container .tree-node {
+  animation-delay: 0.1s;
+}
+
+/* 子节点容器 - 带有动画效果 */
 .children-container {
   margin-left: 16px;
   overflow: hidden;
-  max-height: 10000px;
+  max-height: 2000px; /* 足够大的值以容纳内容 */
   opacity: 1;
-  transition: max-height 0.3s ease-out, opacity 0.2s ease;
+  transform: translateY(0);
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease-out,
+              transform 0.25s ease-out;
 }
 
 .children-container.collapsed {
   max-height: 0;
   opacity: 0;
-  transition: max-height 0.2s ease-in, opacity 0.15s ease;
+  transform: translateY(-8px);
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease-in,
+              transform 0.2s ease-in;
 }
 
-/* 节点内容 */
+/* 节点内容 - 带有动画效果 */
 .node-content {
   display: flex;
   align-items: center;
   padding: 6px 8px;
   border-radius: 6px;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.2s ease,
+              border-color 0.2s ease,
+              transform 0.15s ease,
+              box-shadow 0.2s ease;
   margin-bottom: 2px;
   background: var(--card-bg);
   border: 1px solid var(--border-color);
@@ -556,14 +587,21 @@ body {
 .node-content:hover {
   background: var(--hover-bg);
   border-color: var(--primary-color);
+  transform: translateX(2px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.node-content:active {
+  transform: translateX(1px);
 }
 
 .node-content.active {
   background: var(--active-bg);
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
 }
 
-/* 展开/折叠按钮 */
+/* 展开/折叠按钮 - 带旋转动画 */
 .node-toggle {
   width: 20px;
   height: 20px;
@@ -578,7 +616,9 @@ body {
   border-radius: 6px;
   background: transparent;
   border: none;
-  transition: all 0.15s ease;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              background-color 0.15s ease,
+              color 0.15s ease;
   flex-shrink: 0;
 }
 
@@ -591,6 +631,12 @@ body {
   opacity: 0.25;
   pointer-events: none;
   font-size: 8px;
+}
+
+/* 折叠状态时箭头旋转 */
+.children-container.collapsed + .node-content .node-toggle,
+.node-toggle.collapsed {
+  transform: rotate(-90deg);
 }
 
 /* 图标 */

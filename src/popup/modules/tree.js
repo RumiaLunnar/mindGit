@@ -119,7 +119,7 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
 }
 
 /**
- * 创建展开/折叠按钮
+ * 创建展开/折叠按钮 - 带旋转动画
  * @param {Object} node - 节点数据
  * @param {boolean} hasChildren - 是否有子节点
  * @param {boolean} isExpanded - 是否展开
@@ -128,7 +128,15 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
 function createToggleButton(node, hasChildren, isExpanded) {
   const toggle = document.createElement('span');
   toggle.className = hasChildren ? 'node-toggle' : 'node-toggle leaf';
-  toggle.textContent = hasChildren ? (isExpanded ? '▼' : '▶') : '•';
+  
+  // 使用统一的下箭头，通过 transform 旋转来显示状态
+  toggle.textContent = hasChildren ? '▼' : '•';
+  
+  // 如果是折叠状态，初始旋转 -90 度
+  if (hasChildren && !isExpanded) {
+    toggle.style.transform = 'rotate(-90deg)';
+  }
+  
   toggle.onclick = (e) => {
     e.stopPropagation();
     if (hasChildren) toggleNode(node.id, toggle.closest('.tree-node'));
@@ -228,7 +236,7 @@ function createChildrenContainer(node, session, depth, isExpanded) {
 }
 
 /**
- * 展开/折叠节点
+ * 展开/折叠节点 - 带动画效果
  * @param {string} nodeId - 节点 ID
  * @param {HTMLElement} container - 节点容器
  */
@@ -236,16 +244,22 @@ function toggleNode(nodeId, container) {
   const childrenContainer = container.querySelector('.children-container');
   const toggle = container.querySelector('.node-toggle');
   
-  if (childrenContainer) {
-    if (childrenContainer.classList.contains('collapsed')) {
-      childrenContainer.classList.remove('collapsed');
-      toggle.textContent = '▼';
-      state.expandedNodes.add(nodeId);
-    } else {
-      childrenContainer.classList.add('collapsed');
-      toggle.textContent = '▶';
-      state.expandedNodes.delete(nodeId);
-    }
+  if (!childrenContainer) return;
+  
+  const isCollapsed = childrenContainer.classList.contains('collapsed');
+  
+  if (isCollapsed) {
+    // 展开
+    childrenContainer.classList.remove('collapsed');
+    toggle.classList.remove('collapsed');
+    toggle.style.transform = 'rotate(0deg)';
+    state.expandedNodes.add(nodeId);
+  } else {
+    // 折叠
+    childrenContainer.classList.add('collapsed');
+    toggle.classList.add('collapsed');
+    toggle.style.transform = 'rotate(-90deg)';
+    state.expandedNodes.delete(nodeId);
   }
 }
 
@@ -278,15 +292,23 @@ export function showEmptyState() {
 }
 
 /**
- * 展开全部节点
+ * 展开全部节点 - 带动画效果
  */
 export function expandAll() {
-  document.querySelectorAll('.children-container').forEach(el => {
+  // 先更新所有按钮状态
+  document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
+    el.style.transform = 'rotate(0deg)';
     el.classList.remove('collapsed');
   });
-  document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
-    el.textContent = '▼';
+  
+  // 逐层展开，添加延迟动画
+  const containers = document.querySelectorAll('.children-container.collapsed');
+  containers.forEach((el, index) => {
+    setTimeout(() => {
+      el.classList.remove('collapsed');
+    }, index * 30); // 每个容器延迟 30ms
   });
+  
   document.querySelectorAll('.tree-node').forEach(node => {
     const nodeId = node.dataset.nodeId;
     if (node.querySelector('.children-container')) {
@@ -297,15 +319,20 @@ export function expandAll() {
 }
 
 /**
- * 折叠全部节点
+ * 折叠全部节点 - 带动画效果
  */
 export function collapseAll() {
+  // 先折叠容器
   document.querySelectorAll('.children-container').forEach(el => {
     el.classList.add('collapsed');
   });
+  
+  // 更新按钮状态
   document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
-    el.textContent = '▶';
+    el.style.transform = 'rotate(-90deg)';
+    el.classList.add('collapsed');
   });
+  
   state.expandedNodes.clear();
   showToast(t('allCollapsed'));
 }
