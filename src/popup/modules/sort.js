@@ -11,10 +11,11 @@ export const SORT_MODES = {
 };
 
 // 默认排序权重配置
+// 最近访问 > 访问次数 > 子节点数
 const DEFAULT_SORT_WEIGHTS = {
-  timeWeight: 0.4,        // 时间权重 (40%)
-  childrenWeight: 0.35,   // 子节点权重 (35%)
-  visitsWeight: 0.25      // 访问次数权重 (25%)
+  timeWeight: 0.5,        // 时间权重 (50%) - 最重要
+  visitsWeight: 0.3,      // 访问次数权重 (30%) - 次之
+  childrenWeight: 0.2     // 子节点权重 (20%) - 最低
 };
 
 /**
