@@ -13,6 +13,7 @@
       <button id="themeBtn" class="icon-btn" title="切换主题">🌙</button>
       <button id="refreshBtn" class="icon-btn" title="刷新">🔄</button>
       <button id="newSessionBtn" class="icon-btn" title="新建会话">➕</button>
+      <button id="searchBtn" class="icon-btn" title="搜索">🔍</button>
       <button id="exportBtn" class="icon-btn" title="导出">📤</button>
       <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
     </div>
@@ -30,11 +31,6 @@
     <div class="session-list" id="sessionList">
       <!-- 会话项目将在这里动态生成 -->
     </div>
-  </div>
-
-  <!-- 搜索框 -->
-  <div class="search-box" id="searchBox">
-    <input type="text" id="searchInput" placeholder="搜索会话和节点..." />
   </div>
 
   <div class="stats-bar" id="statsInfo">
@@ -154,6 +150,27 @@
       </div>
       <div class="modal-footer">
         <button id="confirmNewSession" class="primary-btn" data-i18n="create">创建会话</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索对话框 -->
+  <div class="modal" id="searchModal">
+    <div class="modal-content search-modal-content">
+      <div class="modal-header">
+        <h2 id="searchTitle">🔍 搜索</h2>
+        <button class="close-btn" id="closeSearch">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-input-wrapper">
+          <input type="text" id="searchInput" placeholder="搜索会话和节点..." />
+          <div class="search-nav" id="searchNav" style="display: none;">
+            <span id="searchCount">0/0</span>
+            <button class="search-nav-btn" id="prevResult">↑</button>
+            <button class="search-nav-btn" id="nextResult">↓</button>
+          </div>
+        </div>
+        <div class="search-results-list" id="searchResultsList"></div>
       </div>
     </div>
   </div>

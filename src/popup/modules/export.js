@@ -3,7 +3,7 @@
 import { state } from './state.js';
 import * as api from './api.js';
 import { showToast } from './toast.js';
-import { t } from './i18n.js';
+import { t, getCurrentLang } from './i18n.js';
 
 /**
  * 将树形结构转换为Markdown格式
@@ -206,18 +206,18 @@ function showExportFormatDialog() {
     modal.innerHTML = `
       <div class="modal-content" style="max-width: 320px;">
         <div class="modal-header">
-          <h2>📤 选择导出格式</h2>
+          <h2>📤 ${t('exportFormatTitle')}</h2>
           <button class="close-btn" id="closeExportFormat">&times;</button>
         </div>
         <div class="modal-body">
           <div class="export-options" style="display: flex; flex-direction: column; gap: 10px;">
             <button class="export-option-btn" data-format="markdown" style="padding: 14px; border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--card-bg); cursor: pointer; text-align: left; transition: all 0.2s;">
-              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">📝 Markdown</div>
-              <div style="font-size: 12px; color: var(--text-muted);">纯文本格式，适合导入到笔记软件</div>
+              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">📝 ${t('exportMarkdown')}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">${t('exportMarkdownDesc')}</div>
             </button>
             <button class="export-option-btn" data-format="html" style="padding: 14px; border: 1.5px solid var(--border-color); border-radius: 10px; background: var(--card-bg); cursor: pointer; text-align: left; transition: all 0.2s;">
-              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🌐 HTML</div>
-              <div style="font-size: 12px; color: var(--text-muted);完整网页，可用浏览器打开查看</div>
+              <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🌐 ${t('exportHTML')}</div>
+              <div style="font-size: 12px; color: var(--text-muted);">${t('exportHTMLDesc')}</div>
             </button>
           </div>
         </div>
@@ -275,13 +275,13 @@ function showExportFormatDialog() {
  */
 export async function exportCurrentSession() {
   if (!state.currentSessionId) {
-    showToast('请先选择一个会话');
+    showToast(t('noSessionToExport'));
     return;
   }
   
   const result = await api.getSessionTree(state.currentSessionId);
   if (!result.session) {
-    showToast('会话不存在');
+    showToast(t('sessionNotFound'));
     return;
   }
   
@@ -297,11 +297,11 @@ export async function exportCurrentSession() {
   if (format === 'markdown') {
     const content = convertToMarkdown(session);
     downloadFile(content, `${baseFilename}.md`, 'text/markdown');
-    showToast('已导出为 Markdown');
+    showToast(t('exportSuccess').replace('{format}', 'Markdown'));
   } else if (format === 'html') {
     const content = convertToHTML(session);
     downloadFile(content, `${baseFilename}.html`, 'text/html');
-    showToast('已导出为 HTML');
+    showToast(t('exportSuccess').replace('{format}', 'HTML'));
   }
 }
 

@@ -6,44 +6,80 @@ import { highlightNode } from './tree.js';
 
 let searchQuery = '';
 let searchResults = [];
-let currentResultIndex = 0;
+let currentResultIndex = -1;
+let isSearchModalOpen = false;
 
 /**
- * 初始化搜索功能
+ * 打开搜索弹窗
  */
-export function initSearch() {
-  const searchInput = state.elements.searchInput;
-  if (!searchInput) return;
+export function openSearchModal() {
+  const { searchModal, searchInput, searchNav, searchResultsList } = state.elements;
   
-  // 设置占位符
-  searchInput.placeholder = t('searchPlaceholder') || '搜索会话和节点...';
+  isSearchModalOpen = true;
+  searchModal.classList.add('active');
+  searchInput.value = '';
+  searchInput.focus();
+  searchNav.style.display = 'none';
+  searchResultsList.innerHTML = '';
+  searchQuery = '';
+  searchResults = [];
+  currentResultIndex = -1;
   
-  // 输入事件 - 实时搜索
-  searchInput.addEventListener('input', (e) => {
-    searchQuery = e.target.value.trim().toLowerCase();
-    if (searchQuery) {
-      performSearch(searchQuery);
-    } else {
-      clearSearch();
-    }
+  // 绑定搜索输入事件
+  searchInput.oninput = handleSearchInput;
+  searchInput.onkeydown = handleSearchKeydown;
+}
+
+/**
+ * 关闭搜索弹窗
+ */
+export function closeSearchModal() {
+  const { searchModal, searchInput } = state.elements;
+  
+  isSearchModalOpen = false;
+  searchModal.classList.remove('active');
+  searchInput.value = '';
+  searchQuery = '';
+  searchResults = [];
+  currentResultIndex = -1;
+  
+  // 清除高亮
+  document.querySelectorAll('.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
   });
+}
+
+/**
+ * 处理搜索输入
+ */
+function handleSearchInput(e) {
+  searchQuery = e.target.value.trim().toLowerCase();
   
-  // 回车搜索
-  searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && searchQuery) {
+  if (searchQuery) {
+    performSearch(searchQuery);
+  } else {
+    clearSearchResults();
+  }
+}
+
+/**
+ * 处理搜索键盘事件
+ */
+function handleSearchKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (searchResults.length > 0) {
       navigateToNextResult();
     }
-  });
-  
-  // 清空按钮 (ESC 清空)
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      searchInput.value = '';
-      searchQuery = '';
-      clearSearch();
-      searchInput.blur();
-    }
-  });
+  } else if (e.key === 'Escape') {
+    closeSearchModal();
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    navigateToNextResult();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    navigateToPrevResult();
+  }
 }
 
 /**
@@ -60,7 +96,8 @@ function performSearch(query) {
         type: 'session',
         sessionId: sessionId,
         name: session.name,
-        match: session.name
+        match: session.name,
+        icon: '📁'
       });
     }
     
@@ -75,84 +112,100 @@ function performSearch(query) {
             type: 'node',
             sessionId: sessionId,
             nodeId: nodeId,
-            name: node.title || '无标题',
+            name: node.title || t('noTitle'),
             url: node.url,
-            match: title.includes(query) ? node.title : node.url
+            match: title.includes(query) ? node.title : node.url,
+            icon: '📄'
           });
         }
       }
     }
   }
   
-  currentResultIndex = 0;
+  currentResultIndex = searchResults.length > 0 ? 0 : -1;
   
   // 更新搜索结果显示
-  updateSearchResults();
+  renderSearchResults();
+  updateSearchNav();
+  
+  // 自动导航到第一个结果
+  if (currentResultIndex >= 0) {
+    navigateToResult(currentResultIndex);
+  }
 }
 
 /**
- * 清除搜索
+ * 清除搜索结果
  */
-function clearSearch() {
+function clearSearchResults() {
   searchResults = [];
-  currentResultIndex = 0;
-  searchQuery = '';
+  currentResultIndex = -1;
+  
+  const { searchNav, searchResultsList } = state.elements;
+  searchNav.style.display = 'none';
+  searchResultsList.innerHTML = '';
   
   // 移除高亮
   document.querySelectorAll('.search-highlight').forEach(el => {
     el.classList.remove('search-highlight');
   });
-  
-  // 移除搜索结果显示
-  const searchResultsEl = document.getElementById('searchResults');
-  if (searchResultsEl) {
-    searchResultsEl.remove();
-  }
 }
 
 /**
- * 更新搜索结果显示
+ * 渲染搜索结果列表
  */
-function updateSearchResults() {
-  // 移除旧的搜索结果显示
-  const existingResults = document.getElementById('searchResults');
-  if (existingResults) {
-    existingResults.remove();
-  }
+function renderSearchResults() {
+  const { searchResultsList } = state.elements;
   
   if (searchResults.length === 0) {
+    if (searchQuery) {
+      searchResultsList.innerHTML = `
+        <div class="search-no-results">
+          <span class="search-no-results-icon">🔍</span>
+          <span>${t('noSearchResults')}</span>
+        </div>
+      `;
+    } else {
+      searchResultsList.innerHTML = '';
+    }
     return;
   }
   
-  // 创建搜索结果显示
-  const resultsEl = document.createElement('div');
-  resultsEl.id = 'searchResults';
-  resultsEl.className = 'search-results';
-  resultsEl.innerHTML = `
-    <span class="search-count">${t('searchResults').replace('{count}', searchResults.length)}</span>
-    <span class="search-nav">${currentResultIndex + 1} / ${searchResults.length}</span>
-    <button class="search-nav-btn" id="prevResult">↑</button>
-    <button class="search-nav-btn" id="nextResult">↓</button>
-  `;
+  searchResultsList.innerHTML = searchResults.map((result, index) => `
+    <div class="search-result-item ${index === currentResultIndex ? 'active' : ''}" data-index="${index}">
+      <span class="search-result-icon">${result.icon}</span>
+      <div class="search-result-info">
+        <div class="search-result-name">${escapeHtml(result.name)}</div>
+        ${result.url ? `<div class="search-result-url">${escapeHtml(truncateUrl(result.url))}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
   
-  const searchBox = document.querySelector('.search-box');
-  if (searchBox) {
-    searchBox.appendChild(resultsEl);
+  // 绑定点击事件
+  searchResultsList.querySelectorAll('.search-result-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const index = parseInt(item.dataset.index);
+      currentResultIndex = index;
+      navigateToResult(index);
+      renderSearchResults();
+      updateSearchNav();
+    });
+  });
+}
+
+/**
+ * 更新搜索导航状态
+ */
+function updateSearchNav() {
+  const { searchNav, searchCount } = state.elements;
+  
+  if (searchResults.length === 0) {
+    searchNav.style.display = 'none';
+    return;
   }
   
-  // 绑定导航按钮
-  const prevBtn = document.getElementById('prevResult');
-  const nextBtn = document.getElementById('nextResult');
-  
-  if (prevBtn) {
-    prevBtn.addEventListener('click', navigateToPrevResult);
-  }
-  if (nextBtn) {
-    nextBtn.addEventListener('click', navigateToNextResult);
-  }
-  
-  // 自动导航到第一个结果
-  navigateToResult(0);
+  searchNav.style.display = 'flex';
+  searchCount.textContent = `${currentResultIndex + 1}/${searchResults.length}`;
 }
 
 /**
@@ -162,7 +215,8 @@ function navigateToPrevResult() {
   if (searchResults.length === 0) return;
   currentResultIndex = (currentResultIndex - 1 + searchResults.length) % searchResults.length;
   navigateToResult(currentResultIndex);
-  updateSearchResults();
+  renderSearchResults();
+  updateSearchNav();
 }
 
 /**
@@ -172,7 +226,8 @@ function navigateToNextResult() {
   if (searchResults.length === 0) return;
   currentResultIndex = (currentResultIndex + 1) % searchResults.length;
   navigateToResult(currentResultIndex);
-  updateSearchResults();
+  renderSearchResults();
+  updateSearchNav();
 }
 
 /**
@@ -186,16 +241,78 @@ function navigateToResult(index) {
   // 如果是会话级别的搜索
   if (result.type === 'session') {
     // 切换到该会话
-    import('./sessionManager.js').then(m => m.switchToSession(result.sessionId));
+    import('./sessionManager.js').then(m => {
+      m.switchToSession(result.sessionId);
+      // 高亮会话
+      setTimeout(() => highlightSession(result.sessionId), 100);
+    });
   } else if (result.type === 'node') {
     // 切换到该会话
-    import('./sessionManager.js').then(m => m.switchToSession(result.sessionId));
-    
-    // 高亮节点
-    setTimeout(() => {
-      highlightNode(result.nodeId);
-    }, 100);
+    import('./sessionManager.js').then(m => {
+      m.switchToSession(result.sessionId);
+      // 高亮节点
+      setTimeout(() => highlightNode(result.nodeId), 100);
+    });
   }
+}
+
+/**
+ * 高亮显示会话
+ * @param {string} sessionId - 会话ID
+ */
+function highlightSession(sessionId) {
+  document.querySelectorAll('.session-item.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
+  });
+  
+  const sessionEl = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
+  if (sessionEl) {
+    sessionEl.classList.add('search-highlight');
+    sessionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+/**
+ * HTML 转义
+ */
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+/**
+ * 截断 URL
+ */
+function truncateUrl(url) {
+  if (!url) return '';
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname + urlObj.pathname;
+  } catch {
+    return url.length > 50 ? url.substring(0, 50) + '...' : url;
+  }
+}
+
+/**
+ * 初始化搜索功能
+ */
+export function initSearch() {
+  const { searchModal, closeSearch, prevResult, nextResult } = state.elements;
+  
+  // 关闭按钮
+  closeSearch.addEventListener('click', closeSearchModal);
+  
+  // 点击背景关闭
+  searchModal.addEventListener('click', (e) => {
+    if (e.target === searchModal) {
+      closeSearchModal();
+    }
+  });
+  
+  // 导航按钮
+  prevResult.addEventListener('click', navigateToPrevResult);
+  nextResult.addEventListener('click', navigateToNextResult);
 }
 
 /**
@@ -204,22 +321,4 @@ function navigateToResult(index) {
  */
 export function getSearchResults() {
   return searchResults;
-}
-
-/**
- * 高亮显示节点
- * @param {string} nodeId 节点ID
- */
-export function highlightSearchResult(nodeId) {
-  // 移除旧的高亮
-  document.querySelectorAll('.search-highlight').forEach(el => {
-    el.classList.remove('search-highlight');
-  });
-  
-  // 查找节点元素
-  const nodeEl = document.querySelector(`[data-node-id="${nodeId}"]`);
-  if (nodeEl) {
-    nodeEl.classList.add('search-highlight');
-    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
 }

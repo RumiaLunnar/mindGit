@@ -58,11 +58,11 @@ function createSessionItem(session, isActive) {
     <span class="session-item-icon">${isActive ? '👆' : '📄'}</span>
     <div class="session-item-info">
       <div class="session-item-name">${escapeHtml(session.name)}</div>
-      <div class="session-item-meta">${rootCount} 个起点 · ${nodeCount} 个页面 · ${dateStr}</div>
+      <div class="session-item-meta">${t('rootNodesCount', { count: rootCount })} · ${t('nodesCount', { count: nodeCount })} · ${dateStr}</div>
     </div>
     <div class="session-item-actions">
-      <button class="session-item-btn rename" title="重命名">✏️</button>
-      <button class="session-item-btn delete" title="删除">🗑️</button>
+      <button class="session-item-btn rename" title="${t('rename')}">✏️</button>
+      <button class="session-item-btn delete" title="${t('delete')}">🗑️</button>
     </div>
   `;
   

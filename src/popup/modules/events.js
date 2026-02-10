@@ -38,7 +38,7 @@ export function setupEventListeners() {
  * 设置头部按钮事件
  */
 function setupHeaderEvents() {
-  const { themeBtn, refreshBtn, newSessionBtn, exportBtn, settingsBtn, sessionListHeader } = state.elements;
+  const { themeBtn, refreshBtn, newSessionBtn, searchBtn, exportBtn, settingsBtn, sessionListHeader } = state.elements;
   
   // 主题切换
   themeBtn.addEventListener('click', theme.toggleTheme);
@@ -53,6 +53,9 @@ function setupHeaderEvents() {
   
   // 新建会话
   newSessionBtn.addEventListener('click', sessionUI.openNewSessionModal);
+  
+  // 搜索按钮
+  searchBtn.addEventListener('click', search.openSearchModal);
   
   // 导出按钮
   exportBtn.addEventListener('click', exportModule.exportCurrentSession);

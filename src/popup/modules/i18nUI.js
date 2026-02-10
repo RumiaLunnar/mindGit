@@ -12,6 +12,7 @@ export function updateAllTexts() {
   updateTitle('themeBtn', state.isDarkMode ? t('switchToLight') : t('switchToDark'));
   updateTitle('refreshBtn', t('refresh'));
   updateTitle('newSessionBtn', t('newSession'));
+  updateTitle('searchBtn', t('search'));
   updateTitle('exportBtn', t('export'));
   updateTitle('settingsBtn', t('settings'));
   
@@ -41,6 +42,9 @@ export function updateAllTexts() {
   updateElement('labelColorTheme', t('colorTheme'));
   updateElement('labelSortMode', t('sortMode'));
   updateElement('labelExport', t('export'));
+  
+  // 搜索对话框
+  updateElement('searchTitle', `🔍 ${t('search')}`);
   
   // 主题选项
   updateElement('themeDefault', t('themeDefault'));

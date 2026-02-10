@@ -25,6 +25,8 @@ const TRANSLATIONS = {
     // 统计栏
     noActiveSession: '无活动会话',
     sessionStats: '{name} · {rootCount} 个起点 · {nodeCount} 个页面',
+    rootNodesCount: '{count} 个起点',
+    nodesCount: '{count} 个页面',
     
     // 树形区域
     expand: '展开',
@@ -40,9 +42,20 @@ const TRANSLATIONS = {
     collapseAll: '全部折叠',
     
     // 搜索
+    search: '搜索',
     searchPlaceholder: '搜索会话和节点...',
     searchResults: '找到 {count} 个结果',
     noSearchResults: '未找到匹配的会话或节点',
+    
+    // 导出
+    exportFormatTitle: '选择导出格式',
+    exportMarkdown: 'Markdown',
+    exportMarkdownDesc: '纯文本格式，适合导入到笔记软件',
+    exportHTML: 'HTML',
+    exportHTMLDesc: '完整网页，可用浏览器打开查看',
+    exportSuccess: '已导出为 {format}',
+    noSessionToExport: '请先选择一个会话',
+    sessionNotFound: '会话不存在',
     
     // 设置面板
     settingsTitle: '设置',
@@ -119,6 +132,8 @@ const TRANSLATIONS = {
     // Stats Bar
     noActiveSession: 'No active session',
     sessionStats: '{name} · {rootCount} roots · {nodeCount} pages',
+    rootNodesCount: '{count} roots',
+    nodesCount: '{count} pages',
     
     // Tree Area
     expand: 'Expand',
@@ -134,9 +149,20 @@ const TRANSLATIONS = {
     collapseAll: 'Collapse All',
     
     // Search
+    search: 'Search',
     searchPlaceholder: 'Search sessions and nodes...',
     searchResults: 'Found {count} results',
     noSearchResults: 'No matching sessions or nodes found',
+    
+    // Export
+    exportFormatTitle: 'Choose Export Format',
+    exportMarkdown: 'Markdown',
+    exportMarkdownDesc: 'Plain text format, perfect for note apps',
+    exportHTML: 'HTML',
+    exportHTMLDesc: 'Complete webpage, viewable in browser',
+    exportSuccess: 'Exported as {format}',
+    noSessionToExport: 'Please select a session first',
+    sessionNotFound: 'Session not found',
     
     // Settings Panel
     settingsTitle: 'Settings',
