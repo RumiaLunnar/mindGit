@@ -21,7 +21,8 @@ export const DEFAULT_SETTINGS = {
   defaultExpand: true,
   autoCreateSession: true,
   colorTheme: 'default',
-  language: 'zh'
+  language: 'zh',
+  sortMode: 'smart'  // 默认智能排序
 };
 
 // 初始化 DOM 元素引用
@@ -54,6 +55,7 @@ export function initElements() {
     defaultExpand: document.getElementById('defaultExpand'),
     autoCreateSession: document.getElementById('autoCreateSession'),
     colorTheme: document.getElementById('colorTheme'),
-    language: document.getElementById('language')
+    language: document.getElementById('language'),
+    sortMode: document.getElementById('sortMode')
   };
 }

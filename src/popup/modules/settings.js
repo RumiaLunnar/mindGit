@@ -32,7 +32,8 @@ function updateSettingsUI() {
     defaultExpand,
     autoCreateSession,
     colorTheme,
-    language
+    language,
+    sortMode
   } = state.elements;
   
   if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
@@ -42,16 +43,19 @@ function updateSettingsUI() {
   if (autoCreateSession) autoCreateSession.checked = state.currentSettings.autoCreateSession !== false;
   if (colorTheme) colorTheme.value = state.currentSettings.colorTheme || 'default';
   if (language) language.value = state.currentSettings.language || 'zh';
+  if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
 }
 
 /**
  * 保存设置
  */
 export async function saveSettings() {
-  const { colorTheme, language } = state.elements;
+  const { colorTheme, language, sortMode } = state.elements;
   const newTheme = colorTheme?.value || 'default';
   const newLang = language?.value || 'zh';
+  const newSortMode = sortMode?.value || 'smart';
   const oldLang = state.currentSettings.language;
+  const oldSortMode = state.currentSettings.sortMode;
   
   state.currentSettings = {
     ...state.currentSettings,
@@ -61,7 +65,8 @@ export async function saveSettings() {
     defaultExpand: state.elements.defaultExpand?.checked ?? true,
     autoCreateSession: state.elements.autoCreateSession?.checked ?? true,
     colorTheme: newTheme,
-    language: newLang
+    language: newLang,
+    sortMode: newSortMode
   };
   
   await api.setStorage({ settings: state.currentSettings });
@@ -73,6 +78,12 @@ export async function saveSettings() {
   if (newLang !== oldLang) {
     await setLang(newLang);
     updateAllTexts();
+  }
+  
+  // 如果排序方式改变了，重新加载树形结构
+  if (newSortMode !== oldSortMode && state.currentSessionId) {
+    const { loadTree } = await import('./tree.js');
+    await loadTree(state.currentSessionId);
   }
   
   showToast(t('settingsSaved'));

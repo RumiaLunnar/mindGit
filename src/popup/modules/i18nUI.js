@@ -38,6 +38,7 @@ export function updateAllTexts() {
   updateElement('labelAutoCreateSession', t('autoCreateSession'));
   updateElement('labelLanguage', t('language'));
   updateElement('labelColorTheme', t('colorTheme'));
+  updateElement('labelSortMode', t('sortMode'));
   
   // 主题选项
   updateElement('themeDefault', t('themeDefault'));
@@ -46,6 +47,12 @@ export function updateAllTexts() {
   updateElement('themeOcean', t('themeOcean'));
   updateElement('themeWarm', t('themeWarm'));
   updateElement('themeDark', t('themeDark'));
+  
+  // 排序选项
+  updateElement('sortSmart', t('smartSort'));
+  updateElement('sortByTime', t('sortByTime'));
+  updateElement('sortByChildren', t('sortByChildren'));
+  updateElement('sortByVisits', t('sortByVisits'));
   
   // 设置按钮
   updateElementText('saveSettings', t('save'));

@@ -111,6 +111,17 @@
             </select>
           </label>
         </div>
+        <div class="setting-item">
+          <label>
+            <span id="labelSortMode">节点排序</span>
+            <select id="sortMode">
+              <option value="smart" id="sortSmart">智能综合排序</option>
+              <option value="time" id="sortByTime">最近访问优先</option>
+              <option value="children" id="sortByChildren">子节点数量优先</option>
+              <option value="visits" id="sortByVisits">访问次数优先</option>
+            </select>
+          </label>
+        </div>
       </div>
       <div class="modal-footer">
         <button id="saveSettings" class="primary-btn" data-i18n="save">保存设置</button>

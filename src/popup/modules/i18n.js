@@ -57,6 +57,13 @@ const TRANSLATIONS = {
     themeWarm: '暖阳橙',
     themeDark: '暗色模式',
     
+    // 排序选项
+    sortMode: '节点排序',
+    smartSort: '智能综合排序',
+    sortByTime: '最近访问优先',
+    sortByChildren: '子节点数量优先',
+    sortByVisits: '访问次数优允',
+    
     // 新建会话
     newSessionTitle: '新建会话',
     sessionNamePlaceholder: '例如：知乎深度阅读、技术调研...',
@@ -136,6 +143,13 @@ const TRANSLATIONS = {
     themeOcean: 'Ocean Blue',
     themeWarm: 'Warm Orange',
     themeDark: 'Dark Mode',
+    
+    // Sort Options
+    sortMode: 'Node Sorting',
+    smartSort: 'Smart Sort',
+    sortByTime: 'Recent First',
+    sortByChildren: 'Most Children First',
+    sortByVisits: 'Most Visits First',
     
     // New Session
     newSessionTitle: 'New Session',

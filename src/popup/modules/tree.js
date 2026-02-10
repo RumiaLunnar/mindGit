@@ -5,6 +5,7 @@ import * as api from './api.js';
 import { truncateText, generateFaviconUrl } from './utils.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
+import { sortTree, SORT_MODES } from './sort.js';
 
 /**
  * 加载树形结构
@@ -21,7 +22,11 @@ export async function loadTree(sessionId) {
   // 保存当前的展开状态
   saveExpandedState();
   
-  const session = result.session;
+  // 应用排序
+  const sortMode = state.currentSettings?.sortMode || SORT_MODES.SMART;
+  const sortedSession = sortTree(result.session, sortMode);
+  
+  const session = sortedSession;
   const treeHtml = document.createElement('div');
   treeHtml.className = 'tree-wrapper';
   
