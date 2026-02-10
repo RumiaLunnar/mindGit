@@ -6,6 +6,7 @@ import { truncateText, generateFaviconUrl } from './utils.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 import { sortTree, SORT_MODES } from './sort.js';
+import { setupNodeDragDrop } from './dragDrop.js';
 
 /**
  * 加载树形结构
@@ -64,7 +65,6 @@ function createTreeNode(node, session, depth) {
   const container = document.createElement('div');
   container.className = `tree-node depth-${Math.min(depth, 3)}`;
   container.dataset.nodeId = node.id;
-  container.draggable = true; // 启用拖拽
   
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = state.expandedNodes.has(node.id) || state.currentSettings.defaultExpand !== false;
@@ -76,6 +76,9 @@ function createTreeNode(node, session, depth) {
     const childrenContainer = createChildrenContainer(node, session, depth, isExpanded);
     container.appendChild(childrenContainer);
   }
+  
+  // 设置拖拽功能
+  setupNodeDragDrop(container);
   
   return container;
 }

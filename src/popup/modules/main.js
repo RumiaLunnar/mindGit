@@ -9,7 +9,7 @@ import { setupEventListeners } from './events.js';
 import { initI18n, setLang, getCurrentLang } from './i18n.js';
 import { updateAllTexts } from './i18nUI.js';
 import { initSearch } from './search.js';
-import { initDragDrop } from './dragDrop.js';
+import { initTreeDragDrop } from './dragDrop.js';
 
 /**
  * 诊断工具：输出当前状态
@@ -68,8 +68,8 @@ async function init() {
   // 初始化搜索功能
   initSearch();
   
-  // 初始化拖拽功能
-  initDragDrop();
+  // 初始化树形拖拽功能（容器事件）
+  initTreeDragDrop();
   
   // 应用会话列表初始折叠状态
   if (state.isSessionListExpanded) {
