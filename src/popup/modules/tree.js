@@ -100,6 +100,7 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   const borderColor = depthColors[Math.min(depth, 3)];
   
   content.innerHTML = `
+    <span class="drag-handle" title="拖拽移动">::</span>
     <span class="node-toggle ${hasChildren ? '' : 'leaf'}" 
           style="transform: ${isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)'}; opacity: ${hasChildren ? 1 : 0.3};">
       ${hasChildren ? '▼' : '●'}
@@ -107,7 +108,6 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
     <img class="node-icon" src="${faviconUrl}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔍</text></svg>'">
     <span class="node-title" title="${title}\n${node.url}">${truncatedTitle}</span>
     ${visitCount > 1 ? `<span class="node-badge" title="${t('visitCount', { count: visitCount })}" style="border-color: ${borderColor}">${visitCount}</span>` : ''}
-    <span class="drag-handle" title="拖拽移动">⋮⋮</span>
   `;
   
   // 点击展开/折叠
