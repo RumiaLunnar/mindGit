@@ -74,6 +74,14 @@ export function updateAllTexts() {
     nameInput.placeholder = t('sessionNamePlaceholder');
   }
   updateElementText('confirmNewSession', t('create'));
+  
+  // 重命名会话对话框
+  updateElement('renameSessionTitle', `✏️ ${t('renameSessionTitle')}`);
+  updateElement('renameSessionLabel', t('renameSessionLabel'));
+  const renameInput = document.getElementById('renameSessionInput');
+  if (renameInput) {
+    renameInput.placeholder = t('renameSessionPlaceholder');
+  }
 }
 
 /**

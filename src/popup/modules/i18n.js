@@ -91,6 +91,11 @@ const TRANSLATIONS = {
     sessionNameLabel: '会话名称（可选）',
     create: '创建会话',
     
+    // 重命名会话
+    renameSessionTitle: '重命名会话',
+    renameSessionLabel: '会话名称',
+    renameSessionPlaceholder: '输入新的会话名称...',
+    
     // 提示信息
     refreshed: '已刷新',
     sessionCreated: '新会话已创建',
@@ -198,6 +203,11 @@ const TRANSLATIONS = {
     sessionNamePlaceholder: 'e.g., Deep Reading, Tech Research...',
     sessionNameLabel: 'Session Name (Optional)',
     create: 'Create Session',
+    
+    // Rename Session
+    renameSessionTitle: 'Rename Session',
+    renameSessionLabel: 'Session Name',
+    renameSessionPlaceholder: 'Enter new session name...',
     
     // Toast Messages
     refreshed: 'Refreshed',

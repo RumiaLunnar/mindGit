@@ -125,7 +125,11 @@ function setupModalEvents() {
     closeNewSession,
     confirmNewSession,
     newSessionModal,
-    newSessionName
+    newSessionName,
+    closeRenameSession,
+    confirmRenameSession,
+    renameSessionModal,
+    renameSessionInput
   } = state.elements;
   
   // 设置面板
@@ -170,10 +174,34 @@ function setupModalEvents() {
     }
   });
   
+  // 重命名会话
+  closeRenameSession.addEventListener('click', sessionUI.closeRenameSessionModal);
+  
+  confirmRenameSession.addEventListener('click', async () => {
+    const sessionId = sessionUI.getCurrentRenameSessionId();
+    const newName = sessionUI.getRenameSessionName();
+    if (sessionId && newName) {
+      await sessionManager.executeRenameSession(sessionId, newName);
+      sessionUI.closeRenameSessionModal();
+    }
+  });
+  
+  renameSessionModal.addEventListener('click', (e) => {
+    if (e.target === renameSessionModal) sessionUI.closeRenameSessionModal();
+  });
+  
+  // 回车保存重命名
+  renameSessionInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      confirmRenameSession.click();
+    }
+  });
+  
   // ESC 关闭模态框
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       sessionUI.closeNewSessionModal();
+      sessionUI.closeRenameSessionModal();
       settings.closeSettings();
     }
   });

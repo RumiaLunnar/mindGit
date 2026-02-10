@@ -60,6 +60,12 @@ export function initElements() {
     closeNewSession: document.getElementById('closeNewSession'),
     confirmNewSession: document.getElementById('confirmNewSession'),
     newSessionName: document.getElementById('newSessionName'),
+    // 重命名会话
+    renameSessionModal: document.getElementById('renameSessionModal'),
+    closeRenameSession: document.getElementById('closeRenameSession'),
+    confirmRenameSession: document.getElementById('confirmRenameSession'),
+    renameSessionInput: document.getElementById('renameSessionInput'),
+    renameSessionLabel: document.getElementById('renameSessionLabel'),
     // 设置项
     maxSessions: document.getElementById('maxSessions'),
     autoClean: document.getElementById('autoClean'),

@@ -106,24 +106,33 @@ export async function createSession(name) {
   return null;
 }
 
+import * as sessionUI from './sessionUI.js';
+
 /**
- * 重命名会话
+ * 执行重命名会话
+ * @param {string} sessionId - 会话 ID
+ * @param {string} newName - 新名称
+ */
+export async function executeRenameSession(sessionId, newName) {
+  if (!newName || !newName.trim()) return;
+  
+  const result = await api.renameSession(sessionId, newName.trim());
+  
+  if (result.success) {
+    showToast(t('sessionRenamed'));
+    await loadSessions();
+  } else {
+    showToast(t('renameFailed'));
+  }
+}
+
+/**
+ * 打开重命名会话弹窗
  * @param {string} sessionId - 会话 ID
  * @param {string} currentName - 当前名称
  */
-export async function renameSession(sessionId, currentName) {
-  const newName = prompt('请输入新会话名称:', currentName || '');
-  
-  if (newName && newName.trim()) {
-    const result = await api.renameSession(sessionId, newName.trim());
-    
-    if (result.success) {
-      showToast(t('sessionRenamed'));
-      await loadSessions();
-    } else {
-      showToast(t('renameFailed'));
-    }
-  }
+export function renameSession(sessionId, currentName) {
+  sessionUI.openRenameSessionModal(sessionId, currentName);
 }
 
 /**

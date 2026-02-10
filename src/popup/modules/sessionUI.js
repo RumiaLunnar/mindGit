@@ -92,3 +92,48 @@ export function closeNewSessionModal() {
 export function getNewSessionName() {
   return state.elements.newSessionName.value.trim();
 }
+
+// 当前正在重命名的会话ID
+let currentRenameSessionId = null;
+
+/**
+ * 显示重命名会话对话框
+ * @param {string} sessionId - 会话ID
+ * @param {string} currentName - 当前名称
+ */
+export function openRenameSessionModal(sessionId, currentName) {
+  currentRenameSessionId = sessionId;
+  const { renameSessionModal, renameSessionInput } = state.elements;
+  
+  renameSessionModal.classList.add('active');
+  renameSessionInput.value = currentName || '';
+  renameSessionInput.focus();
+  renameSessionInput.select();
+}
+
+/**
+ * 关闭重命名会话对话框
+ */
+export function closeRenameSessionModal() {
+  const { renameSessionModal, renameSessionInput } = state.elements;
+  
+  renameSessionModal.classList.remove('active');
+  renameSessionInput.value = '';
+  currentRenameSessionId = null;
+}
+
+/**
+ * 获取当前重命名的会话ID
+ * @returns {string|null}
+ */
+export function getCurrentRenameSessionId() {
+  return currentRenameSessionId;
+}
+
+/**
+ * 获取重命名会话的新名称
+ * @returns {string}
+ */
+export function getRenameSessionName() {
+  return state.elements.renameSessionInput.value.trim();
+}
