@@ -90,114 +90,49 @@ function createTreeNode(node, session, depth) {
 function createNodeContent(node, hasChildren, isExpanded, depth) {
   const content = document.createElement('div');
   content.className = 'node-content';
-  content.style.marginLeft = `${depth * 4}px`;
   
-  // 展开/折叠按钮
-  const toggle = createToggleButton(node, hasChildren, isExpanded);
-  content.appendChild(toggle);
+  const faviconUrl = node.favIconUrl || generateFaviconUrl(node.url);
+  const title = node.title || t('noTitle');
+  const truncatedTitle = truncateText(title, 40);
+  const visitCount = node.visitCount || 1;
   
-  // 图标
-  const icon = createIcon(node);
-  content.appendChild(icon);
+  const depthColors = ['var(--primary-color)', 'var(--text-secondary)', '#888', '#aaa'];
+  const borderColor = depthColors[Math.min(depth, 3)];
   
-  // 标题
-  const title = createTitle(node);
-  content.appendChild(title);
+  content.innerHTML = `
+    <span class="node-toggle ${hasChildren ? '' : 'leaf'}" 
+          style="transform: ${isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)'}; opacity: ${hasChildren ? 1 : 0.3};">
+      ${hasChildren ? '▼' : '●'}
+    </span>
+    <img class="node-icon" src="${faviconUrl}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔍</text></svg>'">
+    <span class="node-title" title="${title}\n${node.url}">${truncatedTitle}</span>
+    ${visitCount > 1 ? `<span class="node-badge" title="${t('visitCount', { count: visitCount })}" style="border-color: ${borderColor}">${visitCount}</span>` : ''}
+  `;
   
-  // 访问次数徽章
-  if (node.visitCount > 1) {
-    const badge = createBadge(node.visitCount);
-    content.appendChild(badge);
-  }
-  
-  // 操作按钮
-  const actions = createActionButtons(node);
-  content.appendChild(actions);
-  
-  // 点击标题打开链接
-  title.onclick = () => {
-    console.log('[MindGit tree] 点击节点:', node.title, 'URL:', node.url);
-    api.openUrl(node.url);
+  content.onclick = (e) => {
+    if (hasChildren) {
+      toggleNode(node.id, content.closest('.tree-node'));
+    }
   };
+  
+  const actions = createNodeActions(node);
+  content.appendChild(actions);
   
   return content;
 }
 
 /**
- * 创建展开/折叠按钮 - 带旋转动画
- * @param {Object} node - 节点数据
- * @param {boolean} hasChildren - 是否有子节点
- * @param {boolean} isExpanded - 是否展开
- * @returns {HTMLElement}
- */
-function createToggleButton(node, hasChildren, isExpanded) {
-  const toggle = document.createElement('span');
-  toggle.className = hasChildren ? 'node-toggle' : 'node-toggle leaf';
-  
-  // 使用统一的下箭头，通过 transform 旋转来显示状态
-  toggle.textContent = hasChildren ? '▼' : '•';
-  
-  // 如果是折叠状态，初始旋转 -90 度
-  if (hasChildren && !isExpanded) {
-    toggle.style.transform = 'rotate(-90deg)';
-  }
-  
-  toggle.onclick = (e) => {
-    e.stopPropagation();
-    if (hasChildren) toggleNode(node.id, toggle.closest('.tree-node'));
-  };
-  return toggle;
-}
-
-/**
- * 创建图标
+ * 创建节点操作按钮
  * @param {Object} node - 节点数据
  * @returns {HTMLElement}
  */
-function createIcon(node) {
-  const icon = document.createElement('img');
-  icon.className = 'node-icon';
-  icon.src = node.favIconUrl || generateFaviconUrl(node.url);
-  icon.onerror = () => { icon.src = generateFaviconUrl(node.url); };
-  return icon;
-}
-
-/**
- * 创建标题
- * @param {Object} node - 节点数据
- * @returns {HTMLElement}
- */
-function createTitle(node) {
-  const title = document.createElement('div');
-  title.className = 'node-title';
-  title.textContent = truncateText(node.title || '无标题', 35);
-  title.title = `${node.title}\n${node.url}${node.visitCount > 1 ? '\n访问: ' + node.visitCount + '次' : ''}`;
-  return title;
-}
-
-/**
- * 创建访问次数徽章
- * @param {number} count - 访问次数
- * @returns {HTMLElement}
- */
-function createBadge(count) {
-  const badge = document.createElement('span');
-  badge.className = 'node-badge';
-  badge.textContent = count;
-  return badge;
-}
-
-/**
- * 创建操作按钮
- * @param {Object} node - 节点数据
- * @returns {HTMLElement}
- */
-function createActionButtons(node) {
+function createNodeActions(node) {
   const actions = document.createElement('div');
   actions.className = 'node-actions';
+  
   actions.innerHTML = `
-    <button class="node-btn" title="打开">↗️</button>
-    <button class="node-btn" title="删除">🗑️</button>
+    <button class="node-btn" title="${t('open')}">🔗</button>
+    <button class="node-btn" title="${t('delete')}">🗑️</button>
   `;
   
   actions.children[0].onclick = (e) => {
@@ -280,6 +215,65 @@ async function deleteNode(nodeId) {
     await loadTree(state.currentSessionId);
   } else {
     showToast(t('deleteFailed', { error: result.error || 'Unknown error' }));
+  }
+}
+
+/**
+ * 高亮显示指定节点
+ * @param {string} nodeId - 节点ID
+ */
+export function highlightNode(nodeId) {
+  // 移除旧的高亮
+  document.querySelectorAll('.tree-node.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
+  });
+  
+  // 找到节点元素
+  const nodeEl = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+  if (!nodeEl) return;
+  
+  // 展开父节点
+  let parent = nodeEl.parentElement;
+  while (parent) {
+    if (parent.classList.contains('children-container') && parent.classList.contains('collapsed')) {
+      parent.classList.remove('collapsed');
+      const parentNode = parent.closest('.tree-node');
+      if (parentNode) {
+        const toggle = parentNode.querySelector('.node-toggle');
+        if (toggle) {
+          toggle.style.transform = 'rotate(0deg)';
+          toggle.classList.remove('collapsed');
+        }
+      }
+    }
+    parent = parent.parentElement;
+  }
+  
+  // 添加高亮样式
+  nodeEl.classList.add('search-highlight');
+  
+  // 滚动到可视区域
+  nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  // 3秒后移除高亮
+  setTimeout(() => {
+    nodeEl.classList.remove('search-highlight');
+  }, 3000);
+}
+
+/**
+ * 高亮显示会话
+ * @param {string} sessionId - 会话ID
+ */
+export function highlightSession(sessionId) {
+  document.querySelectorAll('.session-item.search-highlight').forEach(el => {
+    el.classList.remove('search-highlight');
+  });
+  
+  const sessionEl = document.querySelector(`.session-item[data-session-id="${sessionId}"]`);
+  if (sessionEl) {
+    sessionEl.classList.add('search-highlight');
+    sessionEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 

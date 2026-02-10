@@ -8,6 +8,7 @@ import * as sessionManager from './sessionManager.js';
 import { setupEventListeners } from './events.js';
 import { initI18n, setLang, getCurrentLang } from './i18n.js';
 import { updateAllTexts } from './i18nUI.js';
+import { initSearch } from './search.js';
 
 /**
  * 诊断工具：输出当前状态
@@ -62,6 +63,16 @@ async function init() {
   
   // 设置事件监听
   setupEventListeners();
+  
+  // 初始化搜索功能
+  initSearch();
+  
+  // 应用会话列表初始折叠状态
+  if (state.isSessionListExpanded) {
+    state.elements.sessionListContainer.classList.add('expanded');
+  } else {
+    state.elements.sessionListContainer.classList.remove('expanded');
+  }
   
   // 尝试自动创建会话
   await sessionManager.tryAutoCreateSession();

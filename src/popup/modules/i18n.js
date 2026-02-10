@@ -11,6 +11,7 @@ const TRANSLATIONS = {
     switchToDark: '切换到暗色模式',
     refresh: '刷新',
     newSession: '新建会话',
+    export: '导出会话',
     settings: '设置',
     
     // 会话列表
@@ -38,6 +39,11 @@ const TRANSLATIONS = {
     expandAll: '全部展开',
     collapseAll: '全部折叠',
     
+    // 搜索
+    searchPlaceholder: '搜索会话和节点...',
+    searchResults: '找到 {count} 个结果',
+    noSearchResults: '未找到匹配的会话或节点',
+    
     // 设置面板
     settingsTitle: '设置',
     maxSessions: '最大保存会话数',
@@ -59,6 +65,7 @@ const TRANSLATIONS = {
     
     // 排序选项
     sortMode: '节点排序',
+    export: '导出会话',
     smartSort: '智能综合排序',
     sortByTime: '最近访问优先',
     sortByChildren: '子节点数量优先',
@@ -98,6 +105,7 @@ const TRANSLATIONS = {
     switchToDark: 'Switch to Dark Mode',
     refresh: 'Refresh',
     newSession: 'New Session',
+    export: 'Export Session',
     settings: 'Settings',
     
     // Session List
@@ -125,6 +133,11 @@ const TRANSLATIONS = {
     expandAll: 'Expand All',
     collapseAll: 'Collapse All',
     
+    // Search
+    searchPlaceholder: 'Search sessions and nodes...',
+    searchResults: 'Found {count} results',
+    noSearchResults: 'No matching sessions or nodes found',
+    
     // Settings Panel
     settingsTitle: 'Settings',
     maxSessions: 'Max Sessions to Keep',
@@ -146,6 +159,7 @@ const TRANSLATIONS = {
     
     // Sort Options
     sortMode: 'Node Sorting',
+    export: 'Export Session',
     smartSort: 'Smart Sort',
     sortByTime: 'Recent First',
     sortByChildren: 'Most Children First',

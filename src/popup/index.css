@@ -449,6 +449,107 @@ body {
   color: var(--text-muted);
 }
 
+/* 搜索框 */
+.search-box {
+  padding: 8px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 13px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+}
+
+.search-box input:hover {
+  border-color: var(--primary-color);
+}
+
+.search-box input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+.search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+/* 搜索结果显示 */
+.search-results {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.search-count {
+  color: var(--primary-color);
+  font-weight: 500;
+}
+
+.search-nav {
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.search-nav-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-nav-btn:hover {
+  background: var(--hover-bg);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* 搜索高亮样式 */
+.search-highlight {
+  animation: searchPulse 2s ease-in-out;
+  border-radius: 4px;
+}
+
+@keyframes searchPulse {
+  0%, 100% {
+    background: transparent;
+  }
+  20%, 80% {
+    background: var(--active-bg);
+    box-shadow: 0 0 0 2px var(--primary-color);
+  }
+}
+
+.session-item.search-highlight {
+  background: var(--active-bg);
+  box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.tree-node.search-highlight > .node-content {
+  background: var(--active-bg);
+  box-shadow: 0 0 0 2px var(--primary-color);
+  border-radius: 6px;
+}
+
 /* 统计栏 - 简洁设计 */
 .stats-bar {
   padding: 8px 18px;
@@ -799,6 +900,24 @@ body {
   opacity: 0.9;
 }
 
+.secondary-btn {
+  padding: 8px 16px;
+  border: 1.5px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.secondary-btn:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  background: var(--hover-bg);
+}
+
 /* 模态框 */
 .modal {
   display: none;
@@ -892,6 +1011,13 @@ body {
 
 .setting-item:last-child {
   margin-bottom: 0;
+}
+
+.setting-item.setting-item-full {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
 }
 
 .setting-item label {

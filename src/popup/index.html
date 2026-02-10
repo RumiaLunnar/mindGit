@@ -13,15 +13,16 @@
       <button id="themeBtn" class="icon-btn" title="切换主题">🌙</button>
       <button id="refreshBtn" class="icon-btn" title="刷新">🔄</button>
       <button id="newSessionBtn" class="icon-btn" title="新建会话">➕</button>
+      <button id="exportBtn" class="icon-btn" title="导出">📤</button>
       <button id="settingsBtn" class="icon-btn" title="设置">⚙️</button>
     </div>
   </div>
 
   <!-- 会话列表 -->
-  <div class="session-list-container expanded" id="sessionListContainer">
+  <div class="session-list-container" id="sessionListContainer">
     <div class="session-list-header" id="sessionListHeader">
       <div class="session-list-title-wrapper">
-        <span class="session-list-toggle" id="sessionListToggle">▼</span>
+        <span class="session-list-toggle" id="sessionListToggle" style="transform: rotate(-90deg);">▼</span>
         <span class="session-list-title" id="sessionListTitle">📁 会话列表</span>
       </div>
       <span class="session-list-count" id="sessionCount">0 个</span>
@@ -29,6 +30,11 @@
     <div class="session-list" id="sessionList">
       <!-- 会话项目将在这里动态生成 -->
     </div>
+  </div>
+
+  <!-- 搜索框 -->
+  <div class="search-box" id="searchBox">
+    <input type="text" id="searchInput" placeholder="搜索会话和节点..." />
   </div>
 
   <div class="stats-bar" id="statsInfo">
@@ -121,6 +127,10 @@
               <option value="visits" id="sortByVisits">访问次数优先</option>
             </select>
           </label>
+        </div>
+        <div class="setting-item setting-item-full">
+          <span id="labelExport">导出会话</span>
+          <button id="exportSettingBtn" class="secondary-btn">📤 导出当前会话</button>
         </div>
       </div>
       <div class="modal-footer">

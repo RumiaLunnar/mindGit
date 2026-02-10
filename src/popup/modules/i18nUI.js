@@ -12,6 +12,7 @@ export function updateAllTexts() {
   updateTitle('themeBtn', state.isDarkMode ? t('switchToLight') : t('switchToDark'));
   updateTitle('refreshBtn', t('refresh'));
   updateTitle('newSessionBtn', t('newSession'));
+  updateTitle('exportBtn', t('export'));
   updateTitle('settingsBtn', t('settings'));
   
   // 会话列表
@@ -39,6 +40,7 @@ export function updateAllTexts() {
   updateElement('labelLanguage', t('language'));
   updateElement('labelColorTheme', t('colorTheme'));
   updateElement('labelSortMode', t('sortMode'));
+  updateElement('labelExport', t('export'));
   
   // 主题选项
   updateElement('themeDefault', t('themeDefault'));

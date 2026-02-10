@@ -9,7 +9,7 @@ export const state = {
   isDarkMode: false,
   refreshTimeout: null,
   elements: {},
-  isSessionListExpanded: true
+  isSessionListExpanded: false
 };
 
 // 默认设置
@@ -37,7 +37,11 @@ export function initElements() {
     statsInfo: document.getElementById('statsInfo'),
     refreshBtn: document.getElementById('refreshBtn'),
     newSessionBtn: document.getElementById('newSessionBtn'),
+    exportBtn: document.getElementById('exportBtn'),
+    exportSettingBtn: document.getElementById('exportSettingBtn'),
     settingsBtn: document.getElementById('settingsBtn'),
+    // 搜索
+    searchInput: document.getElementById('searchInput'),
     clearAllBtn: document.getElementById('clearAllBtn'),
     expandAllBtn: document.getElementById('expandAllBtn'),
     collapseAllBtn: document.getElementById('collapseAllBtn'),

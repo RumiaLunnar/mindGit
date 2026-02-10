@@ -6,6 +6,8 @@ import * as sessionUI from './sessionUI.js';
 import * as settings from './settings.js';
 import * as tree from './tree.js';
 import * as theme from './theme.js';
+import * as search from './search.js';
+import * as exportModule from './export.js';
 import { showToast } from './toast.js';
 
 /**
@@ -36,7 +38,7 @@ export function setupEventListeners() {
  * 设置头部按钮事件
  */
 function setupHeaderEvents() {
-  const { themeBtn, refreshBtn, newSessionBtn, settingsBtn, sessionListHeader } = state.elements;
+  const { themeBtn, refreshBtn, newSessionBtn, exportBtn, settingsBtn, sessionListHeader } = state.elements;
   
   // 主题切换
   themeBtn.addEventListener('click', theme.toggleTheme);
@@ -51,6 +53,9 @@ function setupHeaderEvents() {
   
   // 新建会话
   newSessionBtn.addEventListener('click', sessionUI.openNewSessionModal);
+  
+  // 导出按钮
+  exportBtn.addEventListener('click', exportModule.exportCurrentSession);
   
   // 设置
   settingsBtn.addEventListener('click', settings.openSettings);
@@ -113,6 +118,7 @@ function setupModalEvents() {
     closeSettings,
     saveSettings,
     settingsModal,
+    exportSettingBtn,
     closeNewSession,
     confirmNewSession,
     newSessionModal,
@@ -133,6 +139,11 @@ function setupModalEvents() {
   settingsModal.addEventListener('click', (e) => {
     if (e.target === settingsModal) settings.closeSettings();
   });
+  
+  // 设置面板中的导出按钮
+  if (exportSettingBtn) {
+    exportSettingBtn.addEventListener('click', exportModule.exportCurrentSession);
+  }
   
   // 新建会话
   closeNewSession.addEventListener('click', sessionUI.closeNewSessionModal);
