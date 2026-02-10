@@ -61,7 +61,7 @@ const TRANSLATIONS = {
     // 快照
     snapshot: '快照',
     createSnapshot: '创建快照',
-    snapshotNamePlaceholder: '快照名称...',
+    snapshotNamePlaceholder: '请输入快照名称',
     noSnapshots: '暂无快照',
     restoreSnapshot: '恢复',
     deleteSnapshot: '删除',
@@ -185,7 +185,7 @@ const TRANSLATIONS = {
     // Snapshot
     snapshot: 'Snapshot',
     createSnapshot: 'Create Snapshot',
-    snapshotNamePlaceholder: 'Snapshot name...',
+    snapshotNamePlaceholder: 'Please enter snapshot name',
     noSnapshots: 'No snapshots yet',
     restoreSnapshot: 'Restore',
     deleteSnapshot: 'Delete',

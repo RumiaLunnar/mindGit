@@ -163,18 +163,6 @@ function setupModalEvents() {
     createSnapshotBtn.addEventListener('click', snapshot.openCreateSnapshotModal);
   }
   
-  // 设置面板打开时加载快照列表
-  settingsModal.addEventListener('click', async (e) => {
-    if (e.target === settingsModal) {
-      settings.closeSettings();
-    } else {
-      // 如果是打开设置面板，加载快照列表
-      if (settingsModal.classList.contains('active')) {
-        await snapshot.loadSnapshots();
-      }
-    }
-  });
-  
   // 新建会话
   closeNewSession.addEventListener('click', sessionUI.closeNewSessionModal);
   
@@ -219,45 +207,6 @@ function setupModalEvents() {
       confirmRenameSession.click();
     }
   });
-  
-  // 快照相关事件
-  if (closeSnapshot) {
-    closeSnapshot.addEventListener('click', snapshot.closeSnapshotModal);
-  }
-  
-  if (confirmSnapshot) {
-    confirmSnapshot.addEventListener('click', async () => {
-      const { snapshotInput } = state.elements;
-      const name = snapshotInput.value.trim();
-      if (!name) {
-        showToast('请输入快照名称');
-        return;
-      }
-      
-      // 调用创建快照函数
-      const { createSnapshot } = await import('./api.js');
-      const result = await createSnapshot(state.currentSessionId, name);
-      if (result && result.success) {
-        showToast('快照已创建');
-        snapshot.closeSnapshotModal();
-        await snapshot.loadSnapshots();
-      }
-    });
-  }
-  
-  if (snapshotModal) {
-    snapshotModal.addEventListener('click', (e) => {
-      if (e.target === snapshotModal) snapshot.closeSnapshotModal();
-    });
-  }
-  
-  if (snapshotInput) {
-    snapshotInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter' && confirmSnapshot) {
-        confirmSnapshot.click();
-      }
-    });
-  }
   
   // ESC 关闭模态框
   document.addEventListener('keydown', (e) => {

@@ -87,24 +87,34 @@ export function closeSnapshotModal() {
  * 执行创建快照
  */
 async function executeCreateSnapshot() {
-  if (!currentSnapshotSessionId) return;
+  if (!currentSnapshotSessionId) {
+    console.error('[MindGit] 没有选中的会话');
+    return;
+  }
   
   const { snapshotInput } = state.elements;
   const name = snapshotInput.value.trim();
   
   if (!name) {
-    showToast('请输入快照名称');
+    showToast(t('snapshotNamePlaceholder'));
     return;
   }
   
-  const result = await api.createSnapshot(currentSnapshotSessionId, name);
-  
-  if (result && result.success) {
-    showToast(t('snapshotCreated'));
-    closeSnapshotModal();
-    await loadSnapshots();
-  } else {
-    showToast('创建快照失败');
+  try {
+    console.log('[MindGit] 创建快照:', currentSnapshotSessionId, name);
+    const result = await api.createSnapshot(currentSnapshotSessionId, name);
+    console.log('[MindGit] 创建快照结果:', result);
+    
+    if (result && result.success) {
+      showToast(t('snapshotCreated'));
+      closeSnapshotModal();
+      await loadSnapshots();
+    } else {
+      showToast(result?.error || '创建快照失败');
+    }
+  } catch (e) {
+    console.error('[MindGit] 创建快照异常:', e);
+    showToast('创建快照失败: ' + e.message);
   }
 }
 
