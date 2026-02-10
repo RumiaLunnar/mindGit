@@ -6,7 +6,6 @@ import { truncateText, generateFaviconUrl } from './utils.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 import { sortTree, SORT_MODES } from './sort.js';
-import { setupNodeDragDrop } from './dragDrop.js';
 
 /**
  * 加载树形结构
@@ -77,9 +76,6 @@ function createTreeNode(node, session, depth) {
     container.appendChild(childrenContainer);
   }
   
-  // 设置拖拽功能
-  setupNodeDragDrop(container);
-  
   return container;
 }
 
@@ -111,13 +107,17 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
     <img class="node-icon" src="${faviconUrl}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔍</text></svg>'">
     <span class="node-title" title="${title}\n${node.url}">${truncatedTitle}</span>
     ${visitCount > 1 ? `<span class="node-badge" title="${t('visitCount', { count: visitCount })}" style="border-color: ${borderColor}">${visitCount}</span>` : ''}
+    <span class="drag-handle" title="拖拽移动">⋮⋮</span>
   `;
   
-  content.onclick = (e) => {
-    if (hasChildren) {
+  // 点击展开/折叠
+  const toggle = content.querySelector('.node-toggle');
+  if (toggle && hasChildren) {
+    toggle.onclick = (e) => {
+      e.stopPropagation();
       toggleNode(node.id, content.closest('.tree-node'));
-    }
-  };
+    };
+  }
   
   const actions = createNodeActions(node);
   content.appendChild(actions);
