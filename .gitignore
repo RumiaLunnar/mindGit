@@ -11,8 +11,10 @@ build/
 *.tar.gz
 *.crx
 
-# Release files
-RELEASE*.md
+# Build artifacts
+*.zip
+*.tar.gz
+*.crx
 
 # IDE
 .vscode/
