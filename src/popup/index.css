@@ -1589,3 +1589,53 @@ body {
   flex-shrink: 0;
   font-weight: 500;
 }
+
+/* 拖拽样式 */
+.tree-node {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.tree-node[draggable="true"] {
+  cursor: grab;
+}
+
+.tree-node[draggable="true"]:active {
+  cursor: grabbing;
+}
+
+.tree-node.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+body.is-dragging .tree-node:not(.dragging) {
+  transition: all 0.15s ease;
+}
+
+.tree-node.drag-over {
+  position: relative;
+}
+
+.tree-node.drag-over::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 2px;
+  z-index: 100;
+}
+
+.tree-node.drag-over-top::before {
+  top: -2px;
+}
+
+.tree-node.drag-over-bottom::before {
+  bottom: -2px;
+}
+
+.tree-node.drag-over-bottom {
+  background: rgba(74, 144, 217, 0.05);
+  border-radius: 6px;
+}

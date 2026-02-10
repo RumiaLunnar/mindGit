@@ -64,6 +64,7 @@ function createTreeNode(node, session, depth) {
   const container = document.createElement('div');
   container.className = `tree-node depth-${Math.min(depth, 3)}`;
   container.dataset.nodeId = node.id;
+  container.draggable = true; // 启用拖拽
   
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = state.expandedNodes.has(node.id) || state.currentSettings.defaultExpand !== false;

@@ -242,3 +242,14 @@ export async function deleteSnapshot(snapshotId) {
 export async function restoreSnapshot(snapshotId) {
   return await sendMessage({ action: 'restoreSnapshot', snapshotId });
 }
+
+/**
+ * 移动节点
+ * @param {string} sessionId - 会话 ID
+ * @param {string} nodeId - 节点 ID
+ * @param {string|null} newParentId - 新父节点 ID（null表示移为根节点）
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export async function moveNode(sessionId, nodeId, newParentId) {
+  return await sendMessage({ action: 'moveNode', sessionId, nodeId, newParentId });
+}

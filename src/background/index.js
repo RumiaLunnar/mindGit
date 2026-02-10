@@ -709,6 +709,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  if (request.action === 'moveNode') {
+    chrome.storage.local.get('sessions').then(result => {
+      const sessions = result.sessions;
+      const session = sessions[request.sessionId];
+      
+      if (!session || !session.allNodes[request.nodeId]) {
+        sendResponse({ success: false, error: '节点不存在' });
+        return;
+      }
+      
+      const nodeId = request.nodeId;
+      const node = session.allNodes[nodeId];
+      const newParentId = request.newParentId;
+      
+      // 检查是否拖拽到自己或子节点
+      if (newParentId) {
+        let checkNode = session.allNodes[newParentId];
+        while (checkNode) {
+          if (checkNode.id === nodeId) {
+            sendResponse({ success: false, error: '不能拖拽到自己或子节点' });
+            return;
+          }
+          checkNode = checkNode.parentId ? session.allNodes[checkNode.parentId] : null;
+        }
+      }
+      
+      // 从原父节点中移除
+      if (node.parentId && session.allNodes[node.parentId]) {
+        const oldParent = session.allNodes[node.parentId];
+        oldParent.children = oldParent.children.filter(id => id !== nodeId);
+      } else {
+        // 是根节点，从 rootNodes 移除
+        session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
+      }
+      
+      // 更新父节点
+      node.parentId = newParentId || null;
+      
+      // 添加到新父节点
+      if (newParentId && session.allNodes[newParentId]) {
+        const newParent = session.allNodes[newParentId];
+        if (!newParent.children) {
+          newParent.children = [];
+        }
+        newParent.children.push(nodeId);
+      } else {
+        // 成为根节点
+        session.rootNodes.push(nodeId);
+      }
+      
+      chrome.storage.local.set({ sessions }).then(() => {
+        sendResponse({ success: true });
+      });
+    });
+    return true;
+  }
+  
   // 快照相关 API
   if (request.action === 'createSnapshot') {
     chrome.storage.local.get(['sessions', 'snapshots']).then(result => {
