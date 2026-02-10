@@ -8,7 +8,7 @@ import * as tree from './tree.js';
 import * as theme from './theme.js';
 import * as search from './search.js';
 import * as exportModule from './export.js';
-import * as snapshot from './snapshot.js';
+
 import { showToast } from './toast.js';
 
 /**
@@ -123,7 +123,6 @@ function setupModalEvents() {
     saveSettings,
     settingsModal,
     exportSettingBtn,
-    createSnapshotBtn,
     closeNewSession,
     confirmNewSession,
     newSessionModal,
@@ -131,11 +130,7 @@ function setupModalEvents() {
     closeRenameSession,
     confirmRenameSession,
     renameSessionModal,
-    renameSessionInput,
-    closeSnapshot,
-    confirmSnapshot,
-    snapshotModal,
-    snapshotInput
+    renameSessionInput
   } = state.elements;
   
   // 设置面板
@@ -156,11 +151,6 @@ function setupModalEvents() {
   // 设置面板中的导出按钮
   if (exportSettingBtn) {
     exportSettingBtn.addEventListener('click', exportModule.exportCurrentSession);
-  }
-  
-  // 设置面板中的创建快照按钮
-  if (createSnapshotBtn) {
-    createSnapshotBtn.addEventListener('click', snapshot.openCreateSnapshotModal);
   }
   
   // 新建会话

@@ -33,8 +33,6 @@ export function updateAllTexts() {
   
   // 设置面板按钮
   updateElementText('exportSettingBtn', t('exportCurrentSessionBtn'));
-  updateElementText('createSnapshotBtn', t('createSnapshot'));
-  updateElement('labelSnapshot', t('snapshot'));
   
   // 设置面板
   updateElement('settingsTitle', `⚙️ ${t('settingsTitle')}`);

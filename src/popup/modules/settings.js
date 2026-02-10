@@ -93,16 +93,8 @@ export async function saveSettings() {
 /**
  * 打开设置面板
  */
-export async function openSettings() {
+export function openSettings() {
   state.elements.settingsModal?.classList.add('active');
-  
-  // 加载快照列表
-  try {
-    const { loadSnapshots } = await import('./snapshot.js');
-    await loadSnapshots();
-  } catch (e) {
-    console.error('[MindGit] 加载快照列表失败:', e);
-  }
 }
 
 /**
