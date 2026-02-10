@@ -25,14 +25,19 @@ export function setupNodeDragDrop(nodeEl) {
   if (content) {
     content.style.cursor = 'grab';
   }
+  
+  console.log('[MindGit] 已设置节点可拖拽:', nodeEl.dataset.nodeId);
 }
 
 /**
  * 处理拖拽开始
  */
 function handleDragStart(e) {
+  console.log('[MindGit] dragstart 触发');
+  
   const nodeEl = e.currentTarget;
   if (!nodeEl) {
+    console.log('[MindGit] 节点元素不存在');
     e.preventDefault();
     return;
   }
@@ -40,7 +45,10 @@ function handleDragStart(e) {
   draggedNodeId = nodeEl.dataset.nodeId;
   draggedSessionId = state.currentSessionId;
   
+  console.log('[MindGit] 开始拖拽:', draggedNodeId, '会话:', draggedSessionId);
+  
   if (!draggedNodeId || !draggedSessionId) {
+    console.log('[MindGit] 缺少必要数据');
     e.preventDefault();
     return;
   }
@@ -79,7 +87,12 @@ function handleDragEnd(e) {
  */
 export function initTreeDragDrop() {
   const { treeContainer } = state.elements;
-  if (!treeContainer) return;
+  if (!treeContainer) {
+    console.log('[MindGit] treeContainer 不存在');
+    return;
+  }
+  
+  console.log('[MindGit] 初始化树形拖拽事件');
   
   // 只需要在容器上监听 drop 相关事件
   treeContainer.addEventListener('dragover', handleDragOver);
@@ -140,7 +153,12 @@ async function handleDrop(e) {
   e.preventDefault();
   e.stopPropagation();
   
-  if (!draggedNodeId || !draggedSessionId) return;
+  console.log('[MindGit] drop 触发, draggedNodeId:', draggedNodeId, 'draggedSessionId:', draggedSessionId);
+  
+  if (!draggedNodeId || !draggedSessionId) {
+    console.log('[MindGit] 缺少拖拽数据');
+    return;
+  }
   
   const targetEl = e.target.closest('.tree-node');
   
