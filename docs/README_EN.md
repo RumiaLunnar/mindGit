@@ -40,6 +40,16 @@ mindGit is a Chrome extension that helps you track and visualize the navigation 
 - Theme preference auto-saved
 - Eye-friendly dark color scheme
 
+### 🔍 Quick Search
+- Popup-based search for sessions and nodes
+- Search by title or URL
+- Highlight and jump to results instantly
+
+### 📤 Data Export
+- Export as Markdown format (note app friendly)
+- Export as HTML format (viewable in browser)
+- Easy to archive and share browsing history
+
 ### ⚡ Smart Recording
 - Automatic page navigation tracking
 - Smart duplicate detection and node merging
@@ -82,7 +92,7 @@ mindGit is a Chrome extension that helps you track and visualize the navigation 
 
 ```
 ┌─────────────────────────────────────┐
-│  🌳 mindGit    🌙 🔄 ➕ ⚙️          │  ← Header: Theme, Refresh, New, Settings
+│  🌳 mindGit    🌙 🔄 ➕ 🔍 📤 ⚙️   │  ← Header: Theme, Refresh, New, Search, Export, Settings
 ├─────────────────────────────────────┤
 │  [Select Session...]  🗑️            │  ← Session Selector
 ├─────────────────────────────────────┤
@@ -108,6 +118,10 @@ mindGit is a Chrome extension that helps you track and visualize the navigation 
 - **Click node**: Open link in new tab
 - **Click ▼/▶**: Expand/Collapse child nodes
 - **Click 🌙/☀️**: Toggle dark/light theme
+- **Click 🔍**: Open search modal
+- **Click 📤**: Export current session
+- **ESC**: Close modal / Cancel search
+- **↑↓**: Navigate search results
 
 ## Use Cases
 
@@ -170,10 +184,47 @@ mindGit/
 └── README_EN.md       # English documentation
 ```
 
+## Changelog
+
+### v1.2.0 (2025-02-10)
+
+#### New Features
+- **Search Functionality** 🔍
+  - Popup-based search interface for sessions and nodes
+  - Search by title or URL
+  - Highlight and jump to results instantly
+  
+- **Data Export** 📤
+  - Export as Markdown format (note app friendly)
+  - Export as HTML format (viewable in browser)
+  - Clean popup format selection interface
+  
+- **Session List Collapsed by Default**
+  - Session list defaults to collapsed state to save space
+  - Click header to expand/collapse
+
+#### Improvements
+- Complete English translations for all features
+- Optimized node sorting algorithm (smart composite sorting)
+- Refactored code architecture for better maintainability
+
+### v1.1.0 (2025-01-20)
+
+#### New Features
+- Multi-language support (Chinese/English)
+- Node sorting functionality (4 sorting modes)
+- Auto-create session option
+
+#### Improvements
+- Fixed data loss issues
+- Improved dark mode color scheme
+
+---
+
 ## Roadmap
 
-- [ ] Data export/import (JSON/HTML)
-- [ ] Search functionality
+- [x] Data export/import (JSON/HTML/Markdown)
+- [x] Search functionality
 - [ ] Graph view (alternative layouts)
 - [ ] Timeline view
 - [ ] Note annotation feature

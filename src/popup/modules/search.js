@@ -238,6 +238,9 @@ function navigateToResult(index) {
   const result = searchResults[index];
   if (!result) return;
   
+  // 关闭搜索弹窗
+  closeSearchModal();
+  
   // 如果是会话级别的搜索
   if (result.type === 'session') {
     // 切换到该会话
