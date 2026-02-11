@@ -143,7 +143,8 @@ function handleDragLeave(e) {
 async function handleDrop(e) {
   e.preventDefault();
   
-  console.log('[MindGit] drop 触发', draggedNodeId);
+  console.log('[MindGit] ========== drop 触发 ==========');
+  console.log('[MindGit] draggedNodeId:', draggedNodeId, 'draggedSessionId:', draggedSessionId);
   
   // 清除所有样式
   document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
@@ -152,9 +153,13 @@ async function handleDrop(e) {
   });
   document.body.classList.remove('is-dragging');
   
-  if (!draggedNodeId || !draggedSessionId) return;
+  if (!draggedNodeId || !draggedSessionId) {
+    console.log('[MindGit] 错误: 缺少拖拽数据');
+    return;
+  }
   
   const targetEl = e.target.closest('.tree-node');
+  console.log('[MindGit] 目标元素:', targetEl?.dataset?.nodeId);
   
   if (!targetEl) {
     // 移到根节点
@@ -183,20 +188,28 @@ async function handleDrop(e) {
 }
 
 function isDescendant(ancestorId, descendantId) {
+  if (ancestorId === descendantId) return false;
+  
   const session = state.currentSessions[state.currentSessionId];
   if (!session) return false;
   
+  // 检查 descendantId 是否是 ancestorId 的后代
   let node = session.allNodes[descendantId];
   while (node && node.parentId) {
-    if (node.parentId === ancestorId) return true;
+    if (node.parentId === ancestorId) {
+      console.log('[MindGit] 检测到循环拖拽');
+      return true;
+    }
     node = session.allNodes[node.parentId];
   }
   return false;
 }
 
 async function moveNode(sessionId, nodeId, newParentId) {
+  console.log('[MindGit] 调用 moveNode:', { sessionId, nodeId, newParentId });
   try {
     const result = await api.moveNode(sessionId, nodeId, newParentId);
+    console.log('[MindGit] moveNode 结果:', result);
     if (result.success) {
       const { loadSessionView } = await import('./viewManager.js');
       await loadSessionView(sessionId);
@@ -205,18 +218,24 @@ async function moveNode(sessionId, nodeId, newParentId) {
       showToast(result.error || '移动失败');
     }
   } catch (e) {
-    showToast('移动失败');
+    console.error('[MindGit] moveNode 异常:', e);
+    showToast('移动失败: ' + e.message);
   }
 }
 
 async function moveAsSibling(sessionId, nodeId, targetId, position) {
+  console.log('[MindGit] 调用 moveAsSibling:', { sessionId, nodeId, targetId, position });
   try {
     const session = state.currentSessions[sessionId];
     const targetNode = session.allNodes[targetId];
     const parentId = targetNode.parentId;
     
-    // 先移到父节点下
+    console.log('[MindGit] 目标节点父ID:', parentId);
+    
+    // 先移到父节点下（如果父节点存在），否则移到根
     let result = await api.moveNode(sessionId, nodeId, parentId);
+    console.log('[MindGit] moveNode 结果:', result);
+    
     if (!result.success) {
       showToast(result.error || '移动失败');
       return;
@@ -237,12 +256,26 @@ async function moveAsSibling(sessionId, nodeId, targetId, position) {
         parent.children = children;
         await api.setStorage({ sessions: { ...state.currentSessions, [sessionId]: session } });
       }
+    } else {
+      // 根节点级别调整顺序
+      const rootNodes = [...session.rootNodes];
+      const currentIndex = rootNodes.indexOf(nodeId);
+      if (currentIndex > -1) rootNodes.splice(currentIndex, 1);
+      
+      const targetIndex = rootNodes.indexOf(targetId);
+      if (targetIndex > -1) {
+        const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+        rootNodes.splice(insertIndex, 0, nodeId);
+        session.rootNodes = rootNodes;
+        await api.setStorage({ sessions: { ...state.currentSessions, [sessionId]: session } });
+      }
     }
     
     const { loadSessionView } = await import('./viewManager.js');
     await loadSessionView(sessionId);
     showToast('已移动节点');
   } catch (e) {
+    console.error('[MindGit] moveAsSibling 异常:', e);
     showToast('移动失败');
   }
 }
