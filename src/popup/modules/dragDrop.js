@@ -25,7 +25,19 @@ export function initTreeDragDrop() {
 
   // 容器上的放置事件
   treeContainer.addEventListener('dragover', handleDragOver);
+  treeContainer.addEventListener('dragleave', handleDragLeave);
   treeContainer.addEventListener('drop', handleDrop);
+  
+  // 全局拖拽结束事件（防止拖拽到外部时无法清理）
+  document.addEventListener('dragend', () => {
+    document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+    document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
+      el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+    });
+    document.body.classList.remove('is-dragging');
+    draggedNodeId = null;
+    draggedSessionId = null;
+  });
 }
 
 /**
@@ -49,6 +61,8 @@ function bindDragHandles(container) {
 }
 
 function handleDragStart(e) {
+  console.log('[MindGit] dragstart');
+  
   const handle = e.target;
   const nodeEl = handle.closest('.tree-node');
   
@@ -60,6 +74,8 @@ function handleDragStart(e) {
   draggedNodeId = nodeEl.dataset.nodeId;
   draggedSessionId = state.currentSessionId;
   
+  console.log('[MindGit] 开始拖拽:', draggedNodeId);
+  
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', draggedNodeId);
   
@@ -68,18 +84,19 @@ function handleDragStart(e) {
 }
 
 function handleDragEnd(e) {
-  const handle = e.target;
-  const nodeEl = handle.closest('.tree-node');
+  console.log('[MindGit] dragend 触发');
   
-  if (nodeEl) {
-    nodeEl.classList.remove('dragging');
-  }
+  // 清除所有拖拽相关样式
+  document.querySelectorAll('.dragging').forEach(el => {
+    el.classList.remove('dragging');
+  });
   
   document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
     el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
   });
   
   document.body.classList.remove('is-dragging');
+  
   draggedNodeId = null;
   draggedSessionId = null;
 }
@@ -116,16 +133,28 @@ function handleDragOver(e) {
   }
 }
 
+function handleDragLeave(e) {
+  const targetEl = e.target.closest('.tree-node');
+  if (targetEl) {
+    targetEl.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+  }
+}
+
 async function handleDrop(e) {
   e.preventDefault();
+  
+  console.log('[MindGit] drop 触发', draggedNodeId);
+  
+  // 清除所有样式
+  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+  document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
+    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+  });
+  document.body.classList.remove('is-dragging');
   
   if (!draggedNodeId || !draggedSessionId) return;
   
   const targetEl = e.target.closest('.tree-node');
-  
-  document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
-    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
-  });
   
   if (!targetEl) {
     // 移到根节点
@@ -147,6 +176,10 @@ async function handleDrop(e) {
     // 移到下方或中间 - 成为子节点
     await moveNode(draggedSessionId, draggedNodeId, targetNodeId);
   }
+  
+  // 清理状态
+  draggedNodeId = null;
+  draggedSessionId = null;
 }
 
 function isDescendant(ancestorId, descendantId) {
