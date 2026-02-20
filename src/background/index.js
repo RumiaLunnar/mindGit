@@ -773,14 +773,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   // 跨会话移动节点
   if (request.action === 'moveNodeToSession') {
+    console.log('[mindGit] 开始跨会话移动:', request);
     (async () => {
       try {
         const result = await chrome.storage.local.get('sessions');
+        console.log('[mindGit] 读取 sessions 成功');
         const sessions = result.sessions;
         const fromSession = sessions[request.fromSessionId];
         const toSession = sessions[request.toSessionId];
         
         if (!fromSession || !toSession) {
+          console.log('[mindGit] 会话不存在:', { from: !!fromSession, to: !!toSession });
           sendResponse({ success: false, error: '会话不存在' });
           return;
         }
@@ -789,9 +792,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const node = fromSession.allNodes[nodeId];
         
         if (!node) {
+          console.log('[mindGit] 节点不存在:', nodeId);
           sendResponse({ success: false, error: '节点不存在' });
           return;
         }
+        
+        console.log('[mindGit] 开始移动节点:', nodeId);
         
         // 递归收集所有子节点
         function collectNodes(nodeId, nodes) {
@@ -850,12 +856,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         await chrome.storage.local.set({ sessions });
+        console.log('[mindGit] 移动成功:', nodesToMove.length, '个节点');
         sendResponse({ success: true, movedCount: nodesToMove.length });
       } catch (e) {
         console.error('[mindGit] 跨会话移动节点错误:', e);
         sendResponse({ success: false, error: e.message });
       }
     })();
+    console.log('[mindGit] 异步任务已启动');
     return true;
   }
   

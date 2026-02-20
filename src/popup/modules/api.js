@@ -281,10 +281,13 @@ export async function moveNode(sessionId, nodeId, newParentId) {
  * @returns {Promise<{success: boolean, movedCount: number}>}
  */
 export async function moveNodeToSession(fromSessionId, toSessionId, nodeId) {
-  return await sendMessage({ 
+  console.log('[MindGit] API 调用 moveNodeToSession:', { fromSessionId, toSessionId, nodeId });
+  const result = await sendMessage({ 
     action: 'moveNodeToSession', 
     fromSessionId, 
     toSessionId, 
     nodeId 
   });
+  console.log('[MindGit] API 返回:', result);
+  return result;
 }
