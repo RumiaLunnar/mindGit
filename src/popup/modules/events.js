@@ -233,6 +233,7 @@ function setupModalEvents() {
       snapshot.closeSnapshotModal();
       settings.closeSettings();
       state.elements.aboutModal?.classList.remove('active');
+      state.elements.tokenConfigModal?.classList.remove('active');
     }
   });
 }
@@ -241,87 +242,125 @@ function setupModalEvents() {
  * 设置 GitHub Gist 同步事件
  */
 function setupSyncEvents() {
-  const syncHeader = document.getElementById('syncHeader');
-  const syncSection = document.querySelector('.sync-section');
-  const githubToken = document.getElementById('githubToken');
-  const validateTokenBtn = document.getElementById('validateTokenBtn');
-  const configureToken = document.getElementById('configureToken');
-  const uploadToCloud = document.getElementById('uploadToCloud');
-  const downloadFromCloud = document.getElementById('downloadFromCloud');
-  const syncStatus = document.getElementById('syncStatus');
+  const configureTokenBtn = document.getElementById('configureTokenBtn');
+  const syncCloudBtn = document.getElementById('syncCloudBtn');
+  const tokenConfigModal = document.getElementById('tokenConfigModal');
+  const closeTokenConfig = document.getElementById('closeTokenConfig');
+  const tokenInput = document.getElementById('tokenInput');
+  const saveTokenBtn = document.getElementById('saveTokenBtn');
+  const clearTokenBtn = document.getElementById('clearTokenBtn');
+  const validationResult = document.getElementById('tokenValidationResult');
   
-  if (!syncHeader) return;
+  // 打开配置弹窗
+  if (configureTokenBtn) {
+    configureTokenBtn.addEventListener('click', () => {
+      const { getGitHubToken } = require('./gistSync.js');
+      const currentToken = getGitHubToken();
+      tokenInput.value = currentToken || '';
+      validationResult.textContent = '';
+      tokenConfigModal.classList.add('active');
+      tokenInput.focus();
+    });
+  }
   
-  // 展开/收起
-  syncHeader.addEventListener('click', () => {
-    syncSection.classList.toggle('collapsed');
-  });
+  // 关闭弹窗
+  if (closeTokenConfig) {
+    closeTokenConfig.addEventListener('click', () => {
+      tokenConfigModal.classList.remove('active');
+    });
+  }
   
-  // 配置 Token 按钮
-  if (configureToken) {
-    configureToken.addEventListener('click', () => {
-      const tokenItem = document.querySelector('.token-item');
-      if (tokenItem) {
-        tokenItem.style.display = tokenItem.style.display === 'none' ? 'block' : 'none';
-        if (tokenItem.style.display !== 'none') {
-          githubToken?.focus();
-        }
+  // 点击遮罩关闭
+  if (tokenConfigModal) {
+    tokenConfigModal.addEventListener('click', (e) => {
+      if (e.target === tokenConfigModal) {
+        tokenConfigModal.classList.remove('active');
       }
     });
   }
   
-  // Token 验证
-  if (validateTokenBtn) {
-    validateTokenBtn.addEventListener('click', async () => {
-      const token = githubToken.value.trim();
+  // 保存 Token
+  if (saveTokenBtn) {
+    saveTokenBtn.addEventListener('click', async () => {
+      const token = tokenInput.value.trim();
+      
       if (!token) {
-        syncStatus.textContent = '请输入 Token';
-        syncStatus.className = 'sync-status error';
+        validationResult.textContent = '请输入 Token';
+        validationResult.style.color = 'var(--danger-color)';
         return;
       }
       
-      validateTokenBtn.textContent = '⏳';
-      const result = await (await import('./gistSync.js')).validateToken(token);
+      validationResult.textContent = '验证中...';
+      validationResult.style.color = 'var(--text-secondary)';
+      
+      const { validateToken, saveGitHubToken } = await import('./gistSync.js');
+      const result = await validateToken(token);
       
       if (result.valid) {
-        validateTokenBtn.textContent = '✓';
-        validateTokenBtn.classList.remove('invalid');
-        syncStatus.textContent = `验证通过: ${result.user}`;
-        syncStatus.className = 'sync-status success';
-        // 保存 Token
-        await (await import('./gistSync.js')).saveGitHubToken(token);
-        // 隐藏输入框，显示同步按钮
-        document.querySelector('.token-item').style.display = 'none';
-        document.getElementById('syncActions').style.display = 'none';
-        document.getElementById('syncActionsWithToken').style.display = 'flex';
-        // 更新预览状态
-        const previewEl = document.getElementById('syncStatusPreview');
-        if (previewEl) {
-          previewEl.textContent = '已配置 Token';
-          previewEl.classList.add('configured');
-        }
+        await saveGitHubToken(token);
+        validationResult.textContent = `✓ 验证通过: ${result.user}`;
+        validationResult.style.color = 'var(--success-color)';
+        setTimeout(() => {
+          tokenConfigModal.classList.remove('active');
+          // 刷新设置界面
+          const { updateCloudSyncUI } = require('./settings.js');
+          updateCloudSyncUI();
+        }, 800);
       } else {
-        validateTokenBtn.textContent = '✗';
-        validateTokenBtn.classList.add('invalid');
-        syncStatus.textContent = `验证失败: ${result.error}`;
-        syncStatus.className = 'sync-status error';
+        validationResult.textContent = `✗ 验证失败: ${result.error}`;
+        validationResult.style.color = 'var(--danger-color)';
       }
-      
-      setTimeout(() => {
-        validateTokenBtn.textContent = '✓';
-      }, 2000);
     });
   }
   
-  // 上传到云端
-  if (uploadToCloud) {
-    uploadToCloud.addEventListener('click', async () => {
-      uploadToCloud.disabled = true;
-      uploadToCloud.textContent = '⬆️ 上传中...';
-      const { uploadToCloud: upload } = await import('./gistSync.js');
-      await upload();
-      uploadToCloud.disabled = false;
-      uploadToCloud.textContent = '⬆️ 上传到云端';
+  // 清除 Token
+  if (clearTokenBtn) {
+    clearTokenBtn.addEventListener('click', async () => {
+      const { saveGitHubToken } = await import('./gistSync.js');
+      await saveGitHubToken('');
+      tokenInput.value = '';
+      validationResult.textContent = '已清除';
+      validationResult.style.color = 'var(--text-muted)';
+      setTimeout(() => {
+        tokenConfigModal.classList.remove('active');
+        const { updateCloudSyncUI } = require('./settings.js');
+        updateCloudSyncUI();
+      }, 500);
+    });
+  }
+  
+  // 手动同步按钮
+  if (syncCloudBtn) {
+    syncCloudBtn.addEventListener('click', async () => {
+      const { getGitHubToken, uploadToCloud, downloadFromCloud } = await import('./gistSync.js');
+      const token = getGitHubToken();
+      
+      if (!token) {
+        showToast('请先配置 GitHub Token');
+        return;
+      }
+      
+      syncCloudBtn.disabled = true;
+      syncCloudBtn.textContent = '☁️ 同步中...';
+      
+      try {
+        const downloadResult = await downloadFromCloud();
+        
+        if (downloadResult.noData) {
+          await uploadToCloud();
+        } else if (downloadResult.conflict) {
+          if (confirm('本地和云端数据不一致，要用云端数据覆盖本地吗？')) {
+            await downloadFromCloud(true);
+          }
+        } else if (downloadResult.success) {
+          showToast('同步成功');
+        }
+      } catch (e) {
+        showToast('同步失败: ' + e.message);
+      } finally {
+        syncCloudBtn.disabled = false;
+        syncCloudBtn.textContent = '☁️ 手动同步';
+      }
     });
   }
   

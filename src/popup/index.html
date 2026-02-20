@@ -140,43 +140,11 @@
         
         <!-- GitHub Gist 同步配置 -->
         <div class="setting-divider"></div>
-        <div class="sync-section collapsed">
-          <div class="sync-header" id="syncHeader">
-            <h3 class="sync-title">☁️ 云端同步</h3>
-            <span class="sync-toggle">▼</span>
-          </div>
-          
-          <div class="sync-content" id="syncContent">
-            <div class="sync-status-preview" id="syncStatusPreview">未配置</div>
-            
-            <div class="setting-item token-item" style="display: none;">
-              <label>
-                <span>GitHub Token</span>
-                <div class="token-input-group">
-                  <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-                  <button id="validateTokenBtn" class="icon-btn" title="验证">&#10003;</button>
-                </div>
-              </label>
-              <small class="setting-hint">
-                    在 <a href="https://github.com/settings/tokens/new" target="_blank">GitHub Settings</a> 创建，勾选 'gist' 权限</small>
-            </div>
-            
-            <div class="sync-actions" id="syncActions" style="display: none;">
-              <button id="configureToken" class="secondary-btn sync-btn">
-                🔑 配置 Token
-              </button>
-            </div>
-            
-            <div class="sync-actions" id="syncActionsWithToken" style="display: none;">
-              <button id="uploadToCloud" class="secondary-btn sync-btn">
-                ⬆️ 上传到云端
-              </button>
-              <button id="downloadFromCloud" class="secondary-btn sync-btn">
-                ⬇️ 从云端恢复
-              </button>
-            </div>
-            
-            <div class="sync-status" id="syncStatus"></div>
+        <div class="setting-item setting-item-full">
+          <span>☁️ 云端同步 <small id="syncStatusText" style="color: var(--text-muted);"></small></span>
+          <div class="sync-action-group">
+            <button id="configureTokenBtn" class="secondary-btn">🔑 配置 Token</button>
+            <button id="syncCloudBtn" class="secondary-btn" style="display: none;">☁️ 手动同步</button>
           </div>
         </div>
       </div>
@@ -230,6 +198,30 @@
       </div>
       <div class="modal-footer">
         <button id="confirmNewSession" class="primary-btn" data-i18n="create">创建会话</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 配置 Token 对话框 -->
+  <div class="modal" id="tokenConfigModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔑 配置 GitHub Token</h2>
+        <button class="close-btn" id="closeTokenConfig">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group">
+          <label>GitHub Personal Access Token</label>
+          <input type="password" id="tokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <small style="color: var(--text-muted); margin-top: 6px; display: block;">
+            在 <a href="https://github.com/settings/tokens/new" target="_blank" style="color: var(--primary-color);">GitHub Settings</a> 创建，勾选 <strong>gist</strong> 权限
+          </small>
+        </div>
+        <div id="tokenValidationResult" style="margin-top: 12px; font-size: 13px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="clearTokenBtn" class="secondary-btn" style="margin-right: auto;">清除</button>
+        <button id="saveTokenBtn" class="primary-btn">保存</button>
       </div>
     </div>
   </div>

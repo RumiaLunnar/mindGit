@@ -42,10 +42,7 @@ function updateSettingsUI() {
     colorTheme,
     language,
     sortMode,
-    viewMode,
-    githubToken,
-    syncActions,
-    syncStatus
+    viewMode
   } = state.elements;
   
   if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
@@ -58,50 +55,31 @@ function updateSettingsUI() {
   if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
   if (viewMode) viewMode.value = state.currentSettings.viewMode || 'tree';
   
-  // 云端同步状态更新
-  updateSyncUI();
+  // 云端同步状态
+  updateCloudSyncUI();
 }
 
 /**
  * 更新云端同步 UI
  */
-function updateSyncUI() {
+function updateCloudSyncUI() {
   const token = getGitHubToken();
   const hasToken = !!token;
   
-  // 更新预览状态
-  const previewEl = document.getElementById('syncStatusPreview');
-  if (previewEl) {
-    if (hasToken) {
-      previewEl.textContent = '已配置 Token';
-      previewEl.classList.add('configured');
-    } else {
-      previewEl.textContent = '未配置';
-      previewEl.classList.remove('configured');
-    }
+  const statusText = document.getElementById('syncStatusText');
+  const configureBtn = document.getElementById('configureTokenBtn');
+  const syncBtn = document.getElementById('syncCloudBtn');
+  
+  if (statusText) {
+    statusText.textContent = hasToken ? '(已配置)' : '(未配置)';
   }
   
-  // 根据是否有 token 显示不同按钮
-  const noTokenActions = document.getElementById('syncActions');
-  const withTokenActions = document.getElementById('syncActionsWithToken');
-  
-  if (noTokenActions && withTokenActions) {
-    noTokenActions.style.display = hasToken ? 'none' : 'flex';
-    withTokenActions.style.display = hasToken ? 'flex' : 'none';
+  if (configureBtn) {
+    configureBtn.textContent = hasToken ? '🔑 修改 Token' : '🔑 配置 Token';
   }
   
-  // 更新状态文本
-  const statusEl = document.getElementById('syncStatus');
-  if (statusEl && hasToken) {
-    const { lastSyncTime } = state.currentSettings || {};
-    if (lastSyncTime) {
-      const date = new Date(lastSyncTime);
-      statusEl.textContent = `上次同步: ${date.toLocaleString()}`;
-      statusEl.className = 'sync-status success';
-    } else {
-      statusEl.textContent = '待初始同步';
-      statusEl.className = 'sync-status';
-    }
+  if (syncBtn) {
+    syncBtn.style.display = hasToken ? 'inline-block' : 'none';
   }
 }
 
@@ -109,7 +87,7 @@ function updateSyncUI() {
  * 保存设置
  */
 export async function saveSettings() {
-  const { colorTheme, language, sortMode, viewMode, githubToken } = state.elements;
+  const { colorTheme, language, sortMode, viewMode } = state.elements;
   const newTheme = colorTheme?.value || 'default';
   const newLang = language?.value || 'zh';
   const newSortMode = sortMode?.value || 'smart';
@@ -117,11 +95,6 @@ export async function saveSettings() {
   const oldLang = state.currentSettings.language;
   const oldSortMode = state.currentSettings.sortMode;
   const oldViewMode = state.currentSettings.viewMode || 'tree';
-  
-  // 保存 GitHub Token（只有输入框有值时才保存，避免覆盖已验证的 Token）
-  if (githubToken && githubToken.value.trim()) {
-    await saveGitHubToken(githubToken.value.trim());
-  }
   
   state.currentSettings = {
     ...state.currentSettings,

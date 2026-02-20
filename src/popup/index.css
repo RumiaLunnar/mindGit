@@ -2353,3 +2353,15 @@ body.is-dragging .tree-node:not(.dragging) {
     transform: translateY(0);
   }
 }
+
+/* ========== 云端同步一行布局 ========== */
+
+.sync-action-group {
+  display: flex;
+  gap: 8px;
+}
+
+.sync-action-group button {
+  padding: 6px 12px;
+  font-size: 12px;
+}
