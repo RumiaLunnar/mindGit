@@ -68,7 +68,8 @@ function updateCloudSyncUI() {
   
   const statusText = document.getElementById('syncStatusText');
   const configureBtn = document.getElementById('configureTokenBtn');
-  const syncBtn = document.getElementById('syncCloudBtn');
+  const uploadBtn = document.getElementById('uploadToCloudBtn');
+  const downloadBtn = document.getElementById('downloadFromCloudBtn');
   
   if (statusText) {
     statusText.textContent = hasToken ? '(已配置)' : '(未配置)';
@@ -78,8 +79,12 @@ function updateCloudSyncUI() {
     configureBtn.textContent = hasToken ? '🔑 修改 Token' : '🔑 配置 Token';
   }
   
-  if (syncBtn) {
-    syncBtn.style.display = hasToken ? 'inline-block' : 'none';
+  if (uploadBtn) {
+    uploadBtn.style.display = hasToken ? 'inline-block' : 'none';
+  }
+  
+  if (downloadBtn) {
+    downloadBtn.style.display = hasToken ? 'inline-block' : 'none';
   }
 }
 

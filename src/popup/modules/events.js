@@ -329,10 +329,11 @@ function setupSyncEvents() {
     });
   }
   
-  // 手动同步按钮
-  if (syncCloudBtn) {
-    syncCloudBtn.addEventListener('click', async () => {
-      const { getGitHubToken, uploadToCloud, downloadFromCloud } = await import('./gistSync.js');
+  // 上传到云端
+  const uploadToCloudBtn = document.getElementById('uploadToCloudBtn');
+  if (uploadToCloudBtn) {
+    uploadToCloudBtn.addEventListener('click', async () => {
+      const { getGitHubToken, uploadToCloud } = await import('./gistSync.js');
       const token = getGitHubToken();
       
       if (!token) {
@@ -340,26 +341,49 @@ function setupSyncEvents() {
         return;
       }
       
-      syncCloudBtn.disabled = true;
-      syncCloudBtn.textContent = '☁️ 同步中...';
+      uploadToCloudBtn.disabled = true;
+      const originalText = uploadToCloudBtn.textContent;
+      uploadToCloudBtn.textContent = '⬆️ 上传中...';
       
       try {
-        const downloadResult = await downloadFromCloud();
-        
-        if (downloadResult.noData) {
-          await uploadToCloud();
-        } else if (downloadResult.conflict) {
+        await uploadToCloud();
+      } catch (e) {
+        showToast('上传失败: ' + e.message);
+      } finally {
+        uploadToCloudBtn.disabled = false;
+        uploadToCloudBtn.textContent = originalText;
+      }
+    });
+  }
+  
+  // 从云端下载
+  const downloadFromCloudBtn = document.getElementById('downloadFromCloudBtn');
+  if (downloadFromCloudBtn) {
+    downloadFromCloudBtn.addEventListener('click', async () => {
+      const { getGitHubToken, downloadFromCloud } = await import('./gistSync.js');
+      const token = getGitHubToken();
+      
+      if (!token) {
+        showToast('请先配置 GitHub Token');
+        return;
+      }
+      
+      downloadFromCloudBtn.disabled = true;
+      const originalText = downloadFromCloudBtn.textContent;
+      downloadFromCloudBtn.textContent = '⬇️ 下载中...';
+      
+      try {
+        const result = await downloadFromCloud();
+        if (result.conflict) {
           if (confirm('本地和云端数据不一致，要用云端数据覆盖本地吗？')) {
             await downloadFromCloud(true);
           }
-        } else if (downloadResult.success) {
-          showToast('同步成功');
         }
       } catch (e) {
-        showToast('同步失败: ' + e.message);
+        showToast('下载失败: ' + e.message);
       } finally {
-        syncCloudBtn.disabled = false;
-        syncCloudBtn.textContent = '☁️ 手动同步';
+        downloadFromCloudBtn.disabled = false;
+        downloadFromCloudBtn.textContent = originalText;
       }
     });
   }
