@@ -507,6 +507,13 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[mindGit] 收到消息:', request.action, request);
   
+  // 测试是否匹配 moveNodeToSession
+  if (request.action === 'moveNodeToSession') {
+    console.log('[mindGit] 匹配成功: moveNodeToSession');
+  } else if (request.action && request.action.includes('moveNode')) {
+    console.log('[mindGit] 部分匹配 moveNode:', request.action);
+  }
+  
   if (request.action === 'ping') {
     sendResponse({ pong: true, timestamp: Date.now() });
     return true;
