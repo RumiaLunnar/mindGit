@@ -241,16 +241,34 @@ function setupModalEvents() {
  * 设置 GitHub Gist 同步事件
  */
 function setupSyncEvents() {
-  const {
-    githubToken,
-    validateTokenBtn,
-    uploadToCloud,
-    downloadFromCloud,
-    syncActions,
-    syncStatus
-  } = state.elements;
+  const syncHeader = document.getElementById('syncHeader');
+  const syncSection = document.querySelector('.sync-section');
+  const githubToken = document.getElementById('githubToken');
+  const validateTokenBtn = document.getElementById('validateTokenBtn');
+  const configureToken = document.getElementById('configureToken');
+  const uploadToCloud = document.getElementById('uploadToCloud');
+  const downloadFromCloud = document.getElementById('downloadFromCloud');
+  const syncStatus = document.getElementById('syncStatus');
   
-  if (!githubToken) return;
+  if (!syncHeader) return;
+  
+  // 展开/收起
+  syncHeader.addEventListener('click', () => {
+    syncSection.classList.toggle('collapsed');
+  });
+  
+  // 配置 Token 按钮
+  if (configureToken) {
+    configureToken.addEventListener('click', () => {
+      const tokenItem = document.querySelector('.token-item');
+      if (tokenItem) {
+        tokenItem.style.display = tokenItem.style.display === 'none' ? 'block' : 'none';
+        if (tokenItem.style.display !== 'none') {
+          githubToken?.focus();
+        }
+      }
+    });
+  }
   
   // Token 验证
   if (validateTokenBtn) {
@@ -270,15 +288,23 @@ function setupSyncEvents() {
         validateTokenBtn.classList.remove('invalid');
         syncStatus.textContent = `验证通过: ${result.user}`;
         syncStatus.className = 'sync-status success';
-        if (syncActions) syncActions.style.display = 'flex';
         // 保存 Token
         await (await import('./gistSync.js')).saveGitHubToken(token);
+        // 隐藏输入框，显示同步按钮
+        document.querySelector('.token-item').style.display = 'none';
+        document.getElementById('syncActions').style.display = 'none';
+        document.getElementById('syncActionsWithToken').style.display = 'flex';
+        // 更新预览状态
+        const previewEl = document.getElementById('syncStatusPreview');
+        if (previewEl) {
+          previewEl.textContent = '已配置 Token';
+          previewEl.classList.add('configured');
+        }
       } else {
         validateTokenBtn.textContent = '✗';
         validateTokenBtn.classList.add('invalid');
         syncStatus.textContent = `验证失败: ${result.error}`;
         syncStatus.className = 'sync-status error';
-        if (syncActions) syncActions.style.display = 'none';
       }
       
       setTimeout(() => {

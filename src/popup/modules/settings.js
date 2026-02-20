@@ -58,41 +58,50 @@ function updateSettingsUI() {
   if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
   if (viewMode) viewMode.value = state.currentSettings.viewMode || 'tree';
   
-  // GitHub Token
-  if (githubToken) {
-    const token = getGitHubToken();
-    githubToken.value = token || '';
-    // 如果有 Token，显示同步按钮
-    if (syncActions) {
-      syncActions.style.display = token ? 'flex' : 'none';
-    }
-    // 更新状态
-    updateSyncStatus(token, syncStatus);
-  }
+  // 云端同步状态更新
+  updateSyncUI();
 }
 
 /**
- * 更新同步状态显示
+ * 更新云端同步 UI
  */
-async function updateSyncStatus(token, statusEl) {
-  if (!statusEl) return;
+function updateSyncUI() {
+  const token = getGitHubToken();
+  const hasToken = !!token;
   
-  if (!token) {
-    statusEl.textContent = '';
-    return;
+  // 更新预览状态
+  const previewEl = document.getElementById('syncStatusPreview');
+  if (previewEl) {
+    if (hasToken) {
+      previewEl.textContent = '已配置 Token';
+      previewEl.classList.add('configured');
+    } else {
+      previewEl.textContent = '未配置';
+      previewEl.classList.remove('configured');
+    }
   }
   
-  const { gistId, lastSyncTime } = state.currentSettings || {};
-  if (lastSyncTime) {
-    const date = new Date(lastSyncTime);
-    statusEl.textContent = `上次同步: ${date.toLocaleString()}`;
-    statusEl.className = 'sync-status success';
-  } else if (gistId) {
-    statusEl.textContent = '已配置，未同步';
-    statusEl.className = 'sync-status';
-  } else {
-    statusEl.textContent = '待初始同步';
-    statusEl.className = 'sync-status';
+  // 根据是否有 token 显示不同按钮
+  const noTokenActions = document.getElementById('syncActions');
+  const withTokenActions = document.getElementById('syncActionsWithToken');
+  
+  if (noTokenActions && withTokenActions) {
+    noTokenActions.style.display = hasToken ? 'none' : 'flex';
+    withTokenActions.style.display = hasToken ? 'flex' : 'none';
+  }
+  
+  // 更新状态文本
+  const statusEl = document.getElementById('syncStatus');
+  if (statusEl && hasToken) {
+    const { lastSyncTime } = state.currentSettings || {};
+    if (lastSyncTime) {
+      const date = new Date(lastSyncTime);
+      statusEl.textContent = `上次同步: ${date.toLocaleString()}`;
+      statusEl.className = 'sync-status success';
+    } else {
+      statusEl.textContent = '待初始同步';
+      statusEl.className = 'sync-status';
+    }
   }
 }
 
