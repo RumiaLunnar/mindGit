@@ -53,16 +53,36 @@ export function initTreeDragDrop() {
  * 初始化会话列表拖放
  */
 function initSessionListDragDrop() {
-  const sessionItems = document.querySelectorAll('.session-item');
+  const sessionList = document.getElementById('sessionList');
+  if (!sessionList) return;
   
-  sessionItems.forEach(item => {
-    if (item.dataset.dragSessionBound) return;
-    item.dataset.dragSessionBound = 'true';
-    
-    item.addEventListener('dragover', handleSessionDragOver);
-    item.addEventListener('dragleave', handleSessionDragLeave);
-    item.addEventListener('drop', handleSessionDrop);
+  // 使用事件委托，避免重复绑定
+  if (sessionList.dataset.dragDelegateBound) return;
+  sessionList.dataset.dragDelegateBound = 'true';
+  
+  sessionList.addEventListener('dragover', (e) => {
+    const sessionItem = e.target.closest('.session-item');
+    if (sessionItem) {
+      handleSessionDragOver(e);
+    }
   });
+  
+  sessionList.addEventListener('dragleave', (e) => {
+    const sessionItem = e.target.closest('.session-item');
+    if (sessionItem) {
+      handleSessionDragLeave(e);
+    }
+  });
+  
+  sessionList.addEventListener('drop', (e) => {
+    const sessionItem = e.target.closest('.session-item');
+    if (sessionItem) {
+      console.log('[MindGit] 会话 drop 触发:', sessionItem.dataset.sessionId);
+      handleSessionDrop(e);
+    }
+  });
+  
+  console.log('[MindGit] 会话列表拖放已初始化');
 }
 
 /**
@@ -256,7 +276,7 @@ function handleDragLeave(e) {
  * 处理会话列表拖放经过
  */
 function handleSessionDragOver(e) {
-  e.preventDefault();
+  e.preventDefault(); // 必须调用，否则 drop 事件不会触发
   e.stopPropagation();
   
   if (!draggedNodeId) return;
@@ -267,7 +287,10 @@ function handleSessionDragOver(e) {
   const targetSessionId = sessionEl.dataset.sessionId;
   
   // 不能放到当前会话
-  if (targetSessionId === draggedSessionId) return;
+  if (targetSessionId === draggedSessionId) {
+    e.dataTransfer.dropEffect = 'none';
+    return;
+  }
   
   isDraggingOverSession = true;
   e.dataTransfer.dropEffect = 'move';
@@ -297,18 +320,27 @@ async function handleSessionDrop(e) {
   e.preventDefault();
   e.stopPropagation();
   
+  console.log('[MindGit] handleSessionDrop 触发', { 
+    draggedNodeId, 
+    draggedSessionId,
+    target: e.target 
+  });
+  
   if (!draggedNodeId || !draggedSessionId) {
+    console.log('[MindGit] 缺少拖拽数据');
     cleanupDragState();
     return;
   }
   
   const sessionEl = e.target.closest('.session-item');
   if (!sessionEl) {
+    console.log('[MindGit] 未找到会话元素');
     cleanupDragState();
     return;
   }
   
   const targetSessionId = sessionEl.dataset.sessionId;
+  console.log('[MindGit] 目标会话:', targetSessionId);
   
   // 不能放到当前会话
   if (targetSessionId === draggedSessionId) {
@@ -539,10 +571,22 @@ async function moveAsSibling(sessionId, nodeId, targetId, position) {
  * 跨会话移动节点
  */
 async function executeMoveToSession(fromSessionId, toSessionId, nodeId) {
+  console.log('[MindGit] 执行跨会话移动:', { fromSessionId, toSessionId, nodeId });
+  
   try {
     showToast('正在移动到其他会话...');
     
-    const result = await api.moveNodeToSession(fromSessionId, toSessionId, nodeId);
+    // 添加超时处理
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('请求超时')), 10000);
+    });
+    
+    const result = await Promise.race([
+      api.moveNodeToSession(fromSessionId, toSessionId, nodeId),
+      timeoutPromise
+    ]);
+    
+    console.log('[MindGit] 移动结果:', result);
     
     if (!result) {
       showToast('移动失败: 无响应');
