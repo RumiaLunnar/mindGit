@@ -821,32 +821,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const nodesToMove = [];
         collectNodes(nodeId, nodesToMove);
         
-        // 从原会话移除
-        function removeFromParent(session, nodeId) {
-          const node = session.allNodes[nodeId];
-          if (node.parentId && session.allNodes[node.parentId]) {
-            const parent = session.allNodes[node.parentId];
-            parent.children = parent.children.filter(id => id !== nodeId);
-          } else {
-            session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
-          }
-        }
+        console.log('[mindGit] 收集到节点:', nodesToMove);
         
-        // 移除所有节点
-        for (let i = nodesToMove.length - 1; i >= 0; i--) {
-          const id = nodesToMove[i];
-          removeFromParent(fromSession, id);
-        }
-        
-        // 复制节点到新会话
+        // 第一步：先复制所有节点到新会话（保留完整的子节点关系）
         for (const id of nodesToMove) {
           const originalNode = fromSession.allNodes[id];
+          // 深拷贝，确保 children 数组也是新的
           const newNode = {
             ...originalNode,
+            children: originalNode.children ? [...originalNode.children] : [],
             movedFrom: request.fromSessionId,
             movedAt: Date.now()
           };
           
+          // 只有被拖拽的根节点清空 parentId
           if (id === nodeId) {
             newNode.parentId = null;
           }
@@ -854,10 +842,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           toSession.allNodes[id] = newNode;
         }
         
-        // 添加到新会话的根节点
+        console.log('[mindGit] 已复制节点到新会话');
+        
+        // 第二步：添加根节点到新会话的 rootNodes
         toSession.rootNodes.push(nodeId);
         
-        // 从原会话删除这些节点
+        // 第三步：从原会话移除节点引用
+        for (const id of nodesToMove) {
+          const node = fromSession.allNodes[id];
+          if (node.parentId && fromSession.allNodes[node.parentId]) {
+            const parent = fromSession.allNodes[node.parentId];
+            parent.children = parent.children.filter(childId => childId !== id);
+          } else {
+            fromSession.rootNodes = fromSession.rootNodes.filter(rootId => rootId !== id);
+          }
+        }
+        
+        console.log('[mindGit] 已从原会话移除节点引用');
+        
+        // 第四步：删除原会话中的节点数据
         for (const id of nodesToMove) {
           delete fromSession.allNodes[id];
         }
