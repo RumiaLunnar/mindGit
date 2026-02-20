@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = {
 export function initElements() {
   state.elements = {
     themeBtn: document.getElementById('themeBtn'),
+    syncBtn: document.getElementById('syncBtn'),
     sessionListContainer: document.getElementById('sessionListContainer'),
     sessionListHeader: document.getElementById('sessionListHeader'),
     sessionList: document.getElementById('sessionList'),

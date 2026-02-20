@@ -39,7 +39,7 @@ export function setupEventListeners() {
  * 设置头部按钮事件
  */
 function setupHeaderEvents() {
-  const { themeBtn, refreshBtn, newSessionBtn, searchBtn, exportBtn, settingsBtn, sessionListHeader } = state.elements;
+  const { themeBtn, refreshBtn, newSessionBtn, searchBtn, exportBtn, settingsBtn, sessionListHeader, syncBtn } = state.elements;
   
   // 主题切换
   themeBtn.addEventListener('click', theme.toggleTheme);
@@ -51,6 +51,45 @@ function setupHeaderEvents() {
     refreshBtn.innerHTML = '🔄';
     showToast('已刷新');
   });
+  
+  // 云端同步按钮
+  if (syncBtn) {
+    syncBtn.addEventListener('click', async () => {
+      const { getGitHubToken, uploadToCloud, downloadFromCloud } = await import('./gistSync.js');
+      const token = getGitHubToken();
+      
+      if (!token) {
+        showToast('请先在设置中配置 GitHub Token');
+        settings.openSettings();
+        return;
+      }
+      
+      syncBtn.innerHTML = '<span class="loading-spinner"></span>';
+      syncBtn.disabled = true;
+      
+      try {
+        // 首先尝试下载（检查是否有远程更新）
+        const downloadResult = await downloadFromCloud();
+        
+        if (downloadResult.noData) {
+          // 云端没数据，上传本地
+          await uploadToCloud();
+        } else if (downloadResult.conflict) {
+          // 有冲突，让用户选择
+          if (confirm('本地和云端数据不一致，要用云端数据覆盖本地吗？\n\n点确定: 用云端覆盖本地\n点取消: 保持本地数据')) {
+            await downloadFromCloud(true);
+          }
+        } else if (downloadResult.success) {
+          showToast('同步成功');
+        }
+      } catch (e) {
+        showToast('同步失败: ' + e.message);
+      } finally {
+        syncBtn.innerHTML = '☁️';
+        syncBtn.disabled = false;
+      }
+    });
+  }
   
   // 新建会话
   newSessionBtn.addEventListener('click', sessionUI.openNewSessionModal);

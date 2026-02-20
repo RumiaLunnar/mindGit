@@ -411,19 +411,146 @@ export function scheduleAutoSync() {
 }
 
 /**
- * 初始化自动同步
+ * 初始化自动同步（启动时检查）
+ * 方案 A+B: 手动同步 + 启动时检查
  */
 export function initAutoSync() {
-  // 启动时尝试拉取
   const token = getGitHubToken();
-  if (token) {
-    setTimeout(() => {
-      downloadFromCloud();
-    }, 2000); // 延迟 2 秒，让界面先加载完
+  if (!token) {
+    console.log('[MindGit] 未配置 Token，跳过启动检查');
+    return;
   }
   
-  // 监听数据变化
-  // 通过劫持关键操作来触发同步
+  // 延迟 3 秒执行，等待界面完全加载
+  setTimeout(async () => {
+    await checkCloudOnStartup();
+  }, 3000);
+}
+
+/**
+ * 启动时检查云端数据
+ */
+async function checkCloudOnStartup() {
+  const token = getGitHubToken();
+  if (!token) return;
+  
+  console.log('[MindGit] 启动检查云端数据...');
+  
+  try {
+    // 获取本地同步时间
+    const localLastSync = state.currentSettings?.lastSyncTime || 0;
+    
+    // 查找 Gist
+    let gistId = state.currentSettings?.gistId;
+    let gist = null;
+    
+    if (gistId) {
+      try {
+        const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+          headers: {
+            'Authorization': `Bearer ${token.trim()}`,
+            'Accept': 'application/vnd.github.v3+json',
+            'User-Agent': 'MindGit-Extension'
+          }
+        });
+        if (response.ok) gist = await response.json();
+      } catch (e) {}
+    }
+    
+    if (!gist) {
+      gist = await findMindGitGist(token);
+      if (gist && gist.id !== gistId) {
+        // 找到新的 Gist，更新 ID
+        state.currentSettings.gistId = gist.id;
+        const { setStorage } = await import('./api.js');
+        await setStorage({ settings: state.currentSettings });
+      }
+    }
+    
+    if (!gist) {
+      console.log('[MindGit] 云端无数据，跳过');
+      return;
+    }
+    
+    // 获取云端数据时间
+    const result = await fetchGist(token, gist.id);
+    if (!result.success) {
+      console.log('[MindGit] 获取云端数据失败:', result.error);
+      return;
+    }
+    
+    const remoteLastSync = result.lastSync || 0;
+    
+    // 判断是否需要同步
+    if (remoteLastSync > localLastSync + 5000) { // 云端比本地新5秒以上
+      console.log('[MindGit] 发现云端有更新数据');
+      
+      // 显示同步提示
+      showSyncNotification(result.data, result.lastSync);
+    } else {
+      console.log('[MindGit] 本地数据已是最新');
+    }
+  } catch (e) {
+    console.error('[MindGit] 启动检查失败:', e);
+  }
+}
+
+/**
+ * 显示同步通知
+ */
+function showSyncNotification(remoteData, remoteTime) {
+  // 移除已有通知
+  const existing = document.getElementById('syncNotification');
+  if (existing) existing.remove();
+  
+  const date = new Date(remoteTime).toLocaleString();
+  
+  const notification = document.createElement('div');
+  notification.id = 'syncNotification';
+  notification.className = 'sync-notification';
+  notification.innerHTML = `
+    <div class="sync-notification-content">
+      <span class="sync-icon">☁️</span>
+      <div class="sync-info">
+        <div class="sync-title">发现云端数据</div>
+        <div class="sync-time">最后更新: ${date}</div>
+      </div>
+      <div class="sync-actions-inline">
+        <button id="syncRestoreBtn" class="sync-btn-primary">恢复</button>
+        <button id="syncDismissBtn" class="sync-btn-secondary">忽略</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(notification);
+  
+  // 动画显示
+  requestAnimationFrame(() => {
+    notification.classList.add('show');
+  });
+  
+  // 恢复按钮
+  notification.querySelector('#syncRestoreBtn').addEventListener('click', async () => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+    
+    await applyCloudData(remoteData);
+    showToast('已从云端恢复数据');
+  });
+  
+  // 忽略按钮
+  notification.querySelector('#syncDismissBtn').addEventListener('click', () => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  });
+  
+  // 10 秒后自动消失
+  setTimeout(() => {
+    if (notification.parentNode) {
+      notification.classList.remove('show');
+      setTimeout(() => notification.remove(), 300);
+    }
+  }, 10000);
 }
 
 /**

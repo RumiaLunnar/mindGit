@@ -1971,3 +1971,92 @@ body.is-dragging .tree-node {
 .sync-status.error {
   color: var(--error-color, #f44336);
 }
+
+/* ========== 启动同步通知 ========== */
+
+.sync-notification {
+  position: fixed;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  background: var(--card-bg);
+  border: 1px solid var(--primary-color);
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15), 0 0 0 1px rgba(74, 144, 217, 0.1);
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  max-width: 90%;
+  min-width: 300px;
+}
+
+.sync-notification.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.sync-notification-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.sync-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sync-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.sync-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.sync-actions-inline {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sync-btn-primary,
+.sync-btn-secondary {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.sync-btn-primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.sync-btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.sync-btn-secondary {
+  background: var(--hover-bg);
+  color: var(--text-secondary);
+}
+
+.sync-btn-secondary:hover {
+  background: var(--border-color);
+  color: var(--text-primary);
+}
