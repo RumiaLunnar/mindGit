@@ -342,8 +342,34 @@ async function applyCloudData(data) {
   if (!data) return;
   
   const { setStorage } = await import('./api.js');
+  const { applyColorTheme } = await import('./theme.js');
+  const { setLang } = await import('./i18n.js');
+  const { updateAllTexts } = await import('./i18nUI.js');
   
-  // 合并数据
+  // 保存本地 Token 配置（不要被云端覆盖）
+  const localToken = state.currentSettings.githubToken;
+  const localGistId = state.currentSettings.gistId;
+  
+  // 合并设置
+  if (data.settings) {
+    state.currentSettings = {
+      ...data.settings,
+      githubToken: localToken,      // 保留本地 Token
+      gistId: localGistId,          // 保留本地 Gist ID
+      lastSyncTime: Date.now()      // 更新同步时间
+    };
+    
+    // 应用主题
+    applyColorTheme(state.currentSettings.colorTheme || 'default');
+    
+    // 应用语言
+    if (data.settings.language) {
+      await setLang(data.settings.language);
+      updateAllTexts();
+    }
+  }
+  
+  // 合并会话数据
   if (data.sessions) {
     state.currentSessions = data.sessions;
   }
@@ -354,7 +380,8 @@ async function applyCloudData(data) {
   // 保存到 storage
   await setStorage({
     sessions: state.currentSessions,
-    currentSession: state.currentSessionId
+    currentSession: state.currentSessionId,
+    settings: state.currentSettings
   });
   
   // 刷新视图
@@ -363,9 +390,7 @@ async function applyCloudData(data) {
     await loadSessionView(state.currentSessionId);
   }
   
-  // 更新同步时间
-  state.currentSettings.lastSyncTime = Date.now();
-  await setStorage({ settings: state.currentSettings });
+  showToast('已同步设置和会话数据');
 }
 
 /**
