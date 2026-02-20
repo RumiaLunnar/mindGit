@@ -26,5 +26,7 @@
     "url": "https://github.com/RumiaLunnar/mindGit/issues"
   },
   "homepage": "https://github.com/RumiaLunnar/mindGit#readme",
-  "devDependencies": {}
+  "dependencies": {
+    "sharp": "^0.34.5"
+  }
 }
