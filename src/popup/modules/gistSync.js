@@ -226,11 +226,14 @@ export async function uploadToCloud(force = false) {
   
   showToast('正在上传...');
   
+  // 准备设置数据（移除敏感字段）
+  const { githubToken, gistId, ...safeSettings } = state.currentSettings;
+  
   // 准备同步数据
   const syncData = {
     sessions: state.currentSessions,
     currentSessionId: state.currentSessionId,
-    settings: state.currentSettings,
+    settings: safeSettings,
     exportTime: Date.now()
   };
   

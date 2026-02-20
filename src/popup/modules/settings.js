@@ -109,8 +109,8 @@ export async function saveSettings() {
   const oldSortMode = state.currentSettings.sortMode;
   const oldViewMode = state.currentSettings.viewMode || 'tree';
   
-  // 保存 GitHub Token
-  if (githubToken) {
+  // 保存 GitHub Token（只有输入框有值时才保存，避免覆盖已验证的 Token）
+  if (githubToken && githubToken.value.trim()) {
     await saveGitHubToken(githubToken.value.trim());
   }
   
