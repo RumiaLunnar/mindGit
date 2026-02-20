@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- 浏览器窗口轮廓 -->
+  <rect x="8" y="16" width="112" height="96" rx="12" fill="#5a9fd4"/>
+  
+  <!-- 窗口标题栏 -->
+  <rect x="8" y="16" width="112" height="24" rx="12" fill="#4a8fc4"/>
+  <rect x="8" y="28" width="112" height="12" fill="#4a8fc4"/>
+  
+  <!-- 窗口控制按钮 -->
+  <circle cx="24" cy="28" r="4" fill="#ff6b6b"/>
+  <circle cx="38" cy="28" r="4" fill="#ffd93d"/>
+  <circle cx="52" cy="28" r="4" fill="#6bcf7f"/>
+  
+  <!-- Git 分支结构 -->
+  <!-- 主干 -->
+  <line x1="40" y1="88" x2="40" y2="56" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  
+  <!-- 分支线 -->
+  <path d="M40 72 Q64 72 64 56" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M40 80 Q88 80 88 56" stroke="white" stroke-width="4" fill="none" stroke-linecap="round"/>
+  
+  <!-- 节点（圆点）-->
+  <circle cx="40" cy="88" r="6" fill="white"/>
+  <circle cx="40" cy="56" r="6" fill="white"/>
+  <circle cx="64" cy="56" r="6" fill="white"/>
+  <circle cx="88" cy="56" r="6" fill="white"/>
+  
+  <!-- 小叶子装饰 -->
+  <path d="M88 56 Q96 48 100 52 Q96 56 88 56" fill="#a8d5ba" opacity="0.8"/>
+</svg>
