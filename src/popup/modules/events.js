@@ -177,6 +177,9 @@ function setupModalEvents() {
     exportSettingBtn.addEventListener('click', exportModule.exportCurrentSession);
   }
   
+  // GitHub Gist 同步功能
+  setupSyncEvents();
+  
   // 新建会话
   closeNewSession.addEventListener('click', sessionUI.closeNewSessionModal);
   
@@ -230,6 +233,96 @@ function setupModalEvents() {
       snapshot.closeSnapshotModal();
       settings.closeSettings();
       state.elements.aboutModal?.classList.remove('active');
+    }
+  });
+}
+
+/**
+ * 设置 GitHub Gist 同步事件
+ */
+function setupSyncEvents() {
+  const {
+    githubToken,
+    validateTokenBtn,
+    uploadToCloud,
+    downloadFromCloud,
+    syncActions,
+    syncStatus
+  } = state.elements;
+  
+  if (!githubToken) return;
+  
+  // Token 验证
+  if (validateTokenBtn) {
+    validateTokenBtn.addEventListener('click', async () => {
+      const token = githubToken.value.trim();
+      if (!token) {
+        syncStatus.textContent = '请输入 Token';
+        syncStatus.className = 'sync-status error';
+        return;
+      }
+      
+      validateTokenBtn.textContent = '⏳';
+      const result = await (await import('./gistSync.js')).validateToken(token);
+      
+      if (result.valid) {
+        validateTokenBtn.textContent = '✓';
+        validateTokenBtn.classList.remove('invalid');
+        syncStatus.textContent = `验证通过: ${result.user}`;
+        syncStatus.className = 'sync-status success';
+        if (syncActions) syncActions.style.display = 'flex';
+        // 保存 Token
+        await (await import('./gistSync.js')).saveGitHubToken(token);
+      } else {
+        validateTokenBtn.textContent = '✗';
+        validateTokenBtn.classList.add('invalid');
+        syncStatus.textContent = `验证失败: ${result.error}`;
+        syncStatus.className = 'sync-status error';
+        if (syncActions) syncActions.style.display = 'none';
+      }
+      
+      setTimeout(() => {
+        validateTokenBtn.textContent = '✓';
+      }, 2000);
+    });
+  }
+  
+  // 上传到云端
+  if (uploadToCloud) {
+    uploadToCloud.addEventListener('click', async () => {
+      uploadToCloud.disabled = true;
+      uploadToCloud.textContent = '⬆️ 上传中...';
+      const { uploadToCloud: upload } = await import('./gistSync.js');
+      await upload();
+      uploadToCloud.disabled = false;
+      uploadToCloud.textContent = '⬆️ 上传到云端';
+    });
+  }
+  
+  // 从云端下载
+  if (downloadFromCloud) {
+    downloadFromCloud.addEventListener('click', async () => {
+      downloadFromCloud.disabled = true;
+      downloadFromCloud.textContent = '⬇️ 恢复中...';
+      const { downloadFromCloud: download } = await import('./gistSync.js');
+      const result = await download();
+      
+      if (result.conflict) {
+        if (confirm('本地数据比云端更新，是否覆盖本地？')) {
+          await download(true);
+        }
+      }
+      
+      downloadFromCloud.disabled = false;
+      downloadFromCloud.textContent = '⬇️ 从云端恢复';
+    });
+  }
+  
+  // Token 输入时实时显示/隐藏同步按钮
+  githubToken.addEventListener('input', () => {
+    const hasToken = githubToken.value.trim().length > 0;
+    if (syncActions) {
+      syncActions.style.display = hasToken ? 'flex' : 'none';
     }
   });
 }

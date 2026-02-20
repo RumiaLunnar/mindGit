@@ -75,6 +75,12 @@ async function init() {
   // 初始化快捷键系统
   initKeyboard();
   
+  // 初始化云端同步（延迟，等设置加载完成）
+  setTimeout(async () => {
+    const { initAutoSync } = await import('./gistSync.js');
+    initAutoSync();
+  }, 3000);
+  
   // 应用会话列表初始折叠状态
   if (state.isSessionListExpanded) {
     state.elements.sessionListContainer.classList.add('expanded');

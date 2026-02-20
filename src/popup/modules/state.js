@@ -79,6 +79,13 @@ export function initElements() {
     colorTheme: document.getElementById('colorTheme'),
     language: document.getElementById('language'),
     sortMode: document.getElementById('sortMode'),
-    viewMode: document.getElementById('viewMode')
+    viewMode: document.getElementById('viewMode'),
+    // GitHub Gist 同步
+    githubToken: document.getElementById('githubToken'),
+    validateTokenBtn: document.getElementById('validateTokenBtn'),
+    syncActions: document.getElementById('syncActions'),
+    uploadToCloud: document.getElementById('uploadToCloud'),
+    downloadFromCloud: document.getElementById('downloadFromCloud'),
+    syncStatus: document.getElementById('syncStatus')
   };
 }

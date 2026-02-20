@@ -6,6 +6,14 @@ import { showToast } from './toast.js';
 import { applyColorTheme } from './theme.js';
 import { t, setLang, getCurrentLang } from './i18n.js';
 import { updateAllTexts } from './i18nUI.js';
+import { 
+  getGitHubToken, 
+  saveGitHubToken, 
+  validateToken, 
+  uploadToCloud, 
+  downloadFromCloud,
+  initAutoSync 
+} from './gistSync.js';
 
 /**
  * 加载设置
@@ -34,7 +42,10 @@ function updateSettingsUI() {
     colorTheme,
     language,
     sortMode,
-    viewMode
+    viewMode,
+    githubToken,
+    syncActions,
+    syncStatus
   } = state.elements;
   
   if (maxSessions) maxSessions.value = state.currentSettings.maxSessions;
@@ -46,13 +57,50 @@ function updateSettingsUI() {
   if (language) language.value = state.currentSettings.language || 'zh';
   if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
   if (viewMode) viewMode.value = state.currentSettings.viewMode || 'tree';
+  
+  // GitHub Token
+  if (githubToken) {
+    const token = getGitHubToken();
+    githubToken.value = token || '';
+    // 如果有 Token，显示同步按钮
+    if (syncActions) {
+      syncActions.style.display = token ? 'flex' : 'none';
+    }
+    // 更新状态
+    updateSyncStatus(token, syncStatus);
+  }
+}
+
+/**
+ * 更新同步状态显示
+ */
+async function updateSyncStatus(token, statusEl) {
+  if (!statusEl) return;
+  
+  if (!token) {
+    statusEl.textContent = '';
+    return;
+  }
+  
+  const { gistId, lastSyncTime } = state.currentSettings || {};
+  if (lastSyncTime) {
+    const date = new Date(lastSyncTime);
+    statusEl.textContent = `上次同步: ${date.toLocaleString()}`;
+    statusEl.className = 'sync-status success';
+  } else if (gistId) {
+    statusEl.textContent = '已配置，未同步';
+    statusEl.className = 'sync-status';
+  } else {
+    statusEl.textContent = '待初始同步';
+    statusEl.className = 'sync-status';
+  }
 }
 
 /**
  * 保存设置
  */
 export async function saveSettings() {
-  const { colorTheme, language, sortMode, viewMode } = state.elements;
+  const { colorTheme, language, sortMode, viewMode, githubToken } = state.elements;
   const newTheme = colorTheme?.value || 'default';
   const newLang = language?.value || 'zh';
   const newSortMode = sortMode?.value || 'smart';
@@ -60,6 +108,11 @@ export async function saveSettings() {
   const oldLang = state.currentSettings.language;
   const oldSortMode = state.currentSettings.sortMode;
   const oldViewMode = state.currentSettings.viewMode || 'tree';
+  
+  // 保存 GitHub Token
+  if (githubToken) {
+    await saveGitHubToken(githubToken.value.trim());
+  }
   
   state.currentSettings = {
     ...state.currentSettings,
