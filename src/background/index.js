@@ -771,6 +771,94 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
   
+  // 跨会话移动节点
+  if (request.action === 'moveNodeToSession') {
+    (async () => {
+      try {
+        const result = await chrome.storage.local.get('sessions');
+        const sessions = result.sessions;
+        const fromSession = sessions[request.fromSessionId];
+        const toSession = sessions[request.toSessionId];
+        
+        if (!fromSession || !toSession) {
+          sendResponse({ success: false, error: '会话不存在' });
+          return;
+        }
+        
+        const nodeId = request.nodeId;
+        const node = fromSession.allNodes[nodeId];
+        
+        if (!node) {
+          sendResponse({ success: false, error: '节点不存在' });
+          return;
+        }
+        
+        // 递归收集所有子节点
+        function collectNodes(nodeId, nodes) {
+          const node = fromSession.allNodes[nodeId];
+          if (!node) return;
+          nodes.push(nodeId);
+          if (node.children) {
+            for (const childId of node.children) {
+              collectNodes(childId, nodes);
+            }
+          }
+        }
+        
+        const nodesToMove = [];
+        collectNodes(nodeId, nodesToMove);
+        
+        // 从原会话移除
+        function removeFromParent(session, nodeId) {
+          const node = session.allNodes[nodeId];
+          if (node.parentId && session.allNodes[node.parentId]) {
+            const parent = session.allNodes[node.parentId];
+            parent.children = parent.children.filter(id => id !== nodeId);
+          } else {
+            session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
+          }
+        }
+        
+        // 移除所有节点
+        for (let i = nodesToMove.length - 1; i >= 0; i--) {
+          const id = nodesToMove[i];
+          removeFromParent(fromSession, id);
+        }
+        
+        // 复制节点到新会话
+        for (const id of nodesToMove) {
+          const originalNode = fromSession.allNodes[id];
+          const newNode = {
+            ...originalNode,
+            movedFrom: request.fromSessionId,
+            movedAt: Date.now()
+          };
+          
+          if (id === nodeId) {
+            newNode.parentId = null;
+          }
+          
+          toSession.allNodes[id] = newNode;
+        }
+        
+        // 添加到新会话的根节点
+        toSession.rootNodes.push(nodeId);
+        
+        // 从原会话删除这些节点
+        for (const id of nodesToMove) {
+          delete fromSession.allNodes[id];
+        }
+        
+        await chrome.storage.local.set({ sessions });
+        sendResponse({ success: true, movedCount: nodesToMove.length });
+      } catch (e) {
+        console.error('[mindGit] 跨会话移动节点错误:', e);
+        sendResponse({ success: false, error: e.message });
+      }
+    })();
+    return true;
+  }
+  
   // 快照相关 API
   if (request.action === 'createSnapshot') {
     chrome.storage.local.get(['sessions', 'snapshots']).then(result => {

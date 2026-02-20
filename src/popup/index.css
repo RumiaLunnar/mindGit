@@ -2130,3 +2130,56 @@ body.is-dragging .tree-node {
   background: var(--border-color);
   color: var(--text-primary);
 }
+
+/* ========== 会话列表拖放样式 ========== */
+
+/* 拖拽时高亮会话列表 */
+body.can-drop-to-session .session-list-container {
+  border: 2px dashed var(--primary-color);
+  background: var(--active-bg);
+}
+
+body.can-drop-to-session .session-list-title-wrapper {
+  color: var(--primary-color);
+}
+
+/* 会话项拖放状态 */
+.session-item.drag-over-session {
+  background: var(--active-bg) !important;
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.2);
+  transform: translateX(8px) scale(1.02);
+}
+
+.session-item.drag-over-session::before {
+  transform: scaleY(1) !important;
+}
+
+.session-item.drag-over-session .session-item-icon {
+  animation: bounce 0.5s ease infinite alternate;
+}
+
+@keyframes bounce {
+  from { transform: translateY(0); }
+  to { transform: translateY(-3px); }
+}
+
+/* 拖拽时节点的样式 */
+.tree-node.dragging {
+  opacity: 0.6;
+}
+
+.tree-node.dragging .node-content {
+  background: var(--hover-bg);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  transform: rotate(2deg);
+}
+
+/* 全局拖拽状态提示 */
+body.is-dragging {
+  cursor: grabbing;
+}
+
+body.is-dragging .tree-node:not(.dragging) {
+  transition: transform 0.2s;
+}

@@ -272,3 +272,19 @@ export async function restoreSnapshot(snapshotId) {
 export async function moveNode(sessionId, nodeId, newParentId) {
   return await sendMessage({ action: 'moveNode', sessionId, nodeId, newParentId });
 }
+
+/**
+ * 跨会话移动节点
+ * @param {string} fromSessionId - 源会话 ID
+ * @param {string} toSessionId - 目标会话 ID
+ * @param {string} nodeId - 节点 ID
+ * @returns {Promise<{success: boolean, movedCount: number}>}
+ */
+export async function moveNodeToSession(fromSessionId, toSessionId, nodeId) {
+  return await sendMessage({ 
+    action: 'moveNodeToSession', 
+    fromSessionId, 
+    toSessionId, 
+    nodeId 
+  });
+}

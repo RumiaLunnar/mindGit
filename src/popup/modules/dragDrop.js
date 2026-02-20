@@ -7,7 +7,7 @@ import { showToast } from './toast.js';
 let draggedNodeId = null;
 let draggedSessionId = null;
 let dropIndicator = null;
-let dragGhost = null;
+let isDraggingOverSession = false;
 
 /**
  * 初始化拖拽功能
@@ -33,13 +33,36 @@ export function initTreeDragDrop() {
   treeContainer.addEventListener('dragleave', handleDragLeave);
   treeContainer.addEventListener('drop', handleDrop, { passive: false });
   
-  // 防止拖拽时页面滚动
-  treeContainer.addEventListener('dragenter', (e) => {
-    e.preventDefault();
-  });
+  // 初始化会话列表拖放
+  initSessionListDragDrop();
+  
+  // 监听会话列表变化
+  const sessionList = document.getElementById('sessionList');
+  if (sessionList) {
+    const sessionObserver = new MutationObserver(() => {
+      initSessionListDragDrop();
+    });
+    sessionObserver.observe(sessionList, { childList: true });
+  }
   
   // 全局拖拽结束事件
   document.addEventListener('dragend', handleDragEnd);
+}
+
+/**
+ * 初始化会话列表拖放
+ */
+function initSessionListDragDrop() {
+  const sessionItems = document.querySelectorAll('.session-item');
+  
+  sessionItems.forEach(item => {
+    if (item.dataset.dragSessionBound) return;
+    item.dataset.dragSessionBound = 'true';
+    
+    item.addEventListener('dragover', handleSessionDragOver);
+    item.addEventListener('dragleave', handleSessionDragLeave);
+    item.addEventListener('drop', handleSessionDrop);
+  });
 }
 
 /**
@@ -107,6 +130,9 @@ function handleDragStart(e) {
   if (content) {
     content.style.opacity = '0.5';
   }
+  
+  // 高亮会话列表表示可以放置
+  document.body.classList.add('can-drop-to-session');
 }
 
 function handleDragEnd(e) {
@@ -121,7 +147,12 @@ function handleDragEnd(e) {
     el.classList.remove('drag-over');
   });
   
+  document.querySelectorAll('.session-item.drag-over-session').forEach(el => {
+    el.classList.remove('drag-over-session');
+  });
+  
   document.body.classList.remove('is-dragging');
+  document.body.classList.remove('can-drop-to-session');
   
   // 隐藏放置指示器
   if (dropIndicator) {
@@ -130,13 +161,14 @@ function handleDragEnd(e) {
   
   draggedNodeId = null;
   draggedSessionId = null;
+  isDraggingOverSession = false;
 }
 
 function handleDragOver(e) {
   e.preventDefault();
   e.stopPropagation();
   
-  if (!draggedNodeId) return;
+  if (!draggedNodeId || isDraggingOverSession) return;
   
   e.dataTransfer.dropEffect = 'move';
   
@@ -194,7 +226,7 @@ function updateDropIndicator(rect, position) {
   const containerRect = treeContainer?.getBoundingClientRect();
   if (!containerRect) return;
   
-  const left = containerRect.left + 20; // 左侧缩进
+  const left = containerRect.left + 20;
   const width = containerRect.width - 40;
   
   dropIndicator.style.left = left + 'px';
@@ -205,7 +237,6 @@ function updateDropIndicator(rect, position) {
   } else if (position === 'bottom') {
     dropIndicator.style.top = (rect.bottom - 3) + 'px';
   } else {
-    // center - 隐藏线条指示器，用背景色表示
     dropIndicator.style.opacity = '0';
     return;
   }
@@ -219,6 +250,77 @@ function handleDragLeave(e) {
     targetEl.classList.remove('drag-over');
     delete targetEl.dataset.dropPosition;
   }
+}
+
+/**
+ * 处理会话列表拖放经过
+ */
+function handleSessionDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!draggedNodeId) return;
+  
+  const sessionEl = e.target.closest('.session-item');
+  if (!sessionEl) return;
+  
+  const targetSessionId = sessionEl.dataset.sessionId;
+  
+  // 不能放到当前会话
+  if (targetSessionId === draggedSessionId) return;
+  
+  isDraggingOverSession = true;
+  e.dataTransfer.dropEffect = 'move';
+  
+  // 高亮会话项
+  document.querySelectorAll('.session-item.drag-over-session').forEach(el => {
+    el.classList.remove('drag-over-session');
+  });
+  sessionEl.classList.add('drag-over-session');
+  
+  // 隐藏节点指示器
+  if (dropIndicator) dropIndicator.style.opacity = '0';
+}
+
+function handleSessionDragLeave(e) {
+  const sessionEl = e.target.closest('.session-item');
+  if (sessionEl) {
+    sessionEl.classList.remove('drag-over-session');
+  }
+  isDraggingOverSession = false;
+}
+
+/**
+ * 处理放置到会话
+ */
+async function handleSessionDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  
+  if (!draggedNodeId || !draggedSessionId) {
+    cleanupDragState();
+    return;
+  }
+  
+  const sessionEl = e.target.closest('.session-item');
+  if (!sessionEl) {
+    cleanupDragState();
+    return;
+  }
+  
+  const targetSessionId = sessionEl.dataset.sessionId;
+  
+  // 不能放到当前会话
+  if (targetSessionId === draggedSessionId) {
+    showToast('不能移动到当前会话');
+    cleanupDragState();
+    return;
+  }
+  
+  // 执行跨会话移动
+  await moveNodeToSession(draggedSessionId, targetSessionId, draggedNodeId);
+  
+  cleanupDragState();
 }
 
 async function handleDrop(e) {
@@ -291,10 +393,20 @@ function cleanupDragState() {
     if (content) content.style.opacity = '';
   });
   
+  document.querySelectorAll('.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
+  });
+  
+  document.querySelectorAll('.session-item.drag-over-session').forEach(el => {
+    el.classList.remove('drag-over-session');
+  });
+  
   document.body.classList.remove('is-dragging');
+  document.body.classList.remove('can-drop-to-session');
   
   draggedNodeId = null;
   draggedSessionId = null;
+  isDraggingOverSession = false;
 }
 
 function isDescendant(ancestorId, descendantId) {
@@ -420,6 +532,41 @@ async function moveAsSibling(sessionId, nodeId, targetId, position) {
   } catch (e) {
     console.error('[MindGit] moveAsSibling 异常:', e);
     showToast('移动失败');
+  }
+}
+
+/**
+ * 跨会话移动节点
+ */
+async function moveNodeToSession(fromSessionId, toSessionId, nodeId) {
+  try {
+    showToast('正在移动到其他会话...');
+    
+    const result = await api.moveNodeToSession(fromSessionId, toSessionId, nodeId);
+    
+    if (!result) {
+      showToast('移动失败: 无响应');
+      return;
+    }
+    
+    if (result.success) {
+      // 重新加载会话列表
+      const { loadSessions } = await import('./sessionManager.js');
+      await loadSessions();
+      
+      // 如果当前会话是源会话，刷新视图
+      if (state.currentSessionId === fromSessionId) {
+        const { loadSessionView } = await import('./viewManager.js');
+        await loadSessionView(fromSessionId);
+      }
+      
+      showToast(`已移动 ${result.movedCount} 个节点到其他会话`);
+    } else {
+      showToast(result.error || '移动失败');
+    }
+  } catch (e) {
+    console.error('[MindGit] 跨会话移动失败:', e);
+    showToast('移动失败: ' + e.message);
   }
 }
 
