@@ -3,6 +3,7 @@
 import { state } from './state.js';
 import { escapeHtml, formatDate } from './utils.js';
 import { t } from './i18n.js';
+import { showEmojiPicker, updateSessionEmoji } from './emojiPicker.js';
 
 /**
  * 渲染会话列表
@@ -53,9 +54,12 @@ function createSessionItem(session, isActive) {
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
   const dateStr = formatDate(session.startTime);
+  const emoji = session.emoji;
   
   item.innerHTML = `
-    <span class="session-item-icon">${isActive ? '👆' : '📄'}</span>
+    <div class="session-item-emoji ${emoji ? 'has-emoji' : ''}" title="点击设置标签">
+      ${emoji || (isActive ? '👆' : '📄')}
+    </div>
     <div class="session-item-info">
       <div class="session-item-name">${escapeHtml(session.name)}</div>
       <div class="session-item-meta">${t('rootNodesCount', { count: rootCount })} · ${t('nodesCount', { count: nodeCount })} · ${dateStr}</div>
@@ -65,6 +69,18 @@ function createSessionItem(session, isActive) {
       <button class="session-item-btn delete" title="${t('delete')}">🗑️</button>
     </div>
   `;
+  
+  // Emoji 点击事件
+  const emojiEl = item.querySelector('.session-item-emoji');
+  emojiEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    showEmojiPicker(emojiEl, session.id, async (selectedEmoji) => {
+      await updateSessionEmoji(session.id, selectedEmoji);
+      // 刷新显示
+      emojiEl.textContent = selectedEmoji || (isActive ? '👆' : '📄');
+      emojiEl.classList.toggle('has-emoji', !!selectedEmoji);
+    });
+  });
   
   return item;
 }

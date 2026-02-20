@@ -192,9 +192,10 @@ async function updateStats() {
   const session = result.session;
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
+  const emoji = session.emoji ? session.emoji + ' ' : '';
   
   statsInfo.innerHTML = getText('sessionStats', {
-    name: utils.escapeHtml(session.name),
+    name: emoji + utils.escapeHtml(session.name),
     rootCount,
     nodeCount
   });
