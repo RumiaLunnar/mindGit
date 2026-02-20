@@ -31,21 +31,47 @@ export async function saveGitHubToken(token) {
  * 测试 Token 是否有效
  */
 export async function validateToken(token) {
+  // 清理 token（去除前后空白和换行）
+  const cleanToken = token.trim();
+  
+  if (!cleanToken) {
+    return { valid: false, error: 'Token 不能为空' };
+  }
+  
+  // 检查 token 格式 (ghp_ 开头的 40 位字符)
+  if (!cleanToken.match(/^ghp_[a-zA-Z0-9]{36}$/)) {
+    console.warn('[MindGit] Token 格式不标准，但仍尝试验证:', cleanToken.slice(0, 10) + '...');
+  }
+  
   try {
     const response = await fetch('https://api.github.com/user', {
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
+        'Authorization': `Bearer ${cleanToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'MindGit-Extension'
       }
     });
     
     if (response.ok) {
       const user = await response.json();
+      console.log('[MindGit] Token 验证成功:', user.login);
       return { valid: true, user: user.login };
     }
-    return { valid: false, error: 'Token 无效' };
+    
+    // 详细错误信息
+    const errorData = await response.json().catch(() => ({}));
+    console.error('[MindGit] Token 验证失败:', response.status, errorData);
+    
+    if (response.status === 401) {
+      return { valid: false, error: 'Token 无效或已过期，请检查 Token 是否正确' };
+    } else if (response.status === 403) {
+      return { valid: false, error: 'API 访问受限，请稍后重试' };
+    }
+    
+    return { valid: false, error: `验证失败 (${response.status})` };
   } catch (e) {
-    return { valid: false, error: e.message };
+    console.error('[MindGit] Token 验证异常:', e);
+    return { valid: false, error: '网络错误: ' + e.message };
   }
 }
 
@@ -56,8 +82,9 @@ export async function findMindGitGist(token) {
   try {
     const response = await fetch('https://api.github.com/gists', {
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
+        'Authorization': `Bearer ${token.trim()}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'MindGit-Extension'
       }
     });
     
@@ -86,9 +113,10 @@ export async function createGist(token, data) {
     const response = await fetch('https://api.github.com/gists', {
       method: 'POST',
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': `Bearer ${token.trim()}`,
         'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': 'MindGit-Extension'
       },
       body: JSON.stringify({
         description: 'MindGit 同步数据',
@@ -128,9 +156,10 @@ export async function updateGist(token, gistId, data) {
     const response = await fetch(`https://api.github.com/gists/${gistId}`, {
       method: 'PATCH',
       headers: {
-        'Authorization': `token ${token}`,
+        'Authorization': `Bearer ${token.trim()}`,
         'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'User-Agent': 'MindGit-Extension'
       },
       body: JSON.stringify({
         files: {
@@ -160,8 +189,9 @@ export async function fetchGist(token, gistId) {
   try {
     const response = await fetch(`https://api.github.com/gists/${gistId}`, {
       headers: {
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
+        'Authorization': `Bearer ${token.trim()}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'User-Agent': 'MindGit-Extension'
       }
     });
     
@@ -251,8 +281,9 @@ export async function downloadFromCloud(force = false) {
     try {
       const response = await fetch(`https://api.github.com/gists/${gistId}`, {
         headers: {
-          'Authorization': `token ${token}`,
-          'Accept': 'application/vnd.github.v3+json'
+          'Authorization': `Bearer ${token.trim()}`,
+          'Accept': 'application/vnd.github.v3+json',
+          'User-Agent': 'MindGit-Extension'
         }
       });
       if (response.ok) gist = await response.json();
