@@ -2358,10 +2358,13 @@ body.is-dragging .tree-node:not(.dragging) {
 
 .sync-action-group {
   display: flex;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .sync-action-group button {
-  padding: 6px 12px;
+  padding: 6px 10px;
   font-size: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }

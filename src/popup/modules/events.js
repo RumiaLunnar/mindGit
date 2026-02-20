@@ -243,7 +243,6 @@ function setupModalEvents() {
  */
 function setupSyncEvents() {
   const configureTokenBtn = document.getElementById('configureTokenBtn');
-  const syncCloudBtn = document.getElementById('syncCloudBtn');
   const tokenConfigModal = document.getElementById('tokenConfigModal');
   const closeTokenConfig = document.getElementById('closeTokenConfig');
   const tokenInput = document.getElementById('tokenInput');
@@ -253,13 +252,13 @@ function setupSyncEvents() {
   
   // 打开配置弹窗
   if (configureTokenBtn) {
-    configureTokenBtn.addEventListener('click', () => {
-      const { getGitHubToken } = require('./gistSync.js');
+    configureTokenBtn.addEventListener('click', async () => {
+      const { getGitHubToken } = await import('./gistSync.js');
       const currentToken = getGitHubToken();
-      tokenInput.value = currentToken || '';
-      validationResult.textContent = '';
-      tokenConfigModal.classList.add('active');
-      tokenInput.focus();
+      if (tokenInput) tokenInput.value = currentToken || '';
+      if (validationResult) validationResult.textContent = '';
+      if (tokenConfigModal) tokenConfigModal.classList.add('active');
+      if (tokenInput) tokenInput.focus();
     });
   }
   
@@ -300,10 +299,10 @@ function setupSyncEvents() {
         await saveGitHubToken(token);
         validationResult.textContent = `✓ 验证通过: ${result.user}`;
         validationResult.style.color = 'var(--success-color)';
-        setTimeout(() => {
+        setTimeout(async () => {
           tokenConfigModal.classList.remove('active');
           // 刷新设置界面
-          const { updateCloudSyncUI } = require('./settings.js');
+          const { updateCloudSyncUI } = await import('./settings.js');
           updateCloudSyncUI();
         }, 800);
       } else {
@@ -321,9 +320,9 @@ function setupSyncEvents() {
       tokenInput.value = '';
       validationResult.textContent = '已清除';
       validationResult.style.color = 'var(--text-muted)';
-      setTimeout(() => {
+      setTimeout(async () => {
         tokenConfigModal.classList.remove('active');
-        const { updateCloudSyncUI } = require('./settings.js');
+        const { updateCloudSyncUI } = await import('./settings.js');
         updateCloudSyncUI();
       }, 500);
     });
