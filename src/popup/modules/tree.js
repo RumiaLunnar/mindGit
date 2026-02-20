@@ -220,7 +220,46 @@ async function deleteNode(nodeId) {
   
   if (result.success) {
     showToast(t('nodeDeleted'));
-    await loadTree(state.currentSessionId);
+    
+    // 静默删除：从 DOM 移除节点，不刷新整个树
+    const nodeEl = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+    if (nodeEl) {
+      // 如果有子节点容器，一起移除
+      nodeEl.remove();
+    }
+    
+    // 更新 state 中的数据
+    const session = state.currentSessions[state.currentSessionId];
+    if (session && session.allNodes[nodeId]) {
+      // 递归收集所有子节点
+      const nodesToRemove = [];
+      const collectNodes = (id) => {
+        const node = session.allNodes[id];
+        if (!node) return;
+        nodesToRemove.push(id);
+        if (node.children) {
+          for (const childId of node.children) {
+            collectNodes(childId);
+          }
+        }
+      };
+      collectNodes(nodeId);
+      
+      // 从父节点中移除引用
+      const node = session.allNodes[nodeId];
+      if (node.parentId && session.allNodes[node.parentId]) {
+        const parent = session.allNodes[node.parentId];
+        parent.children = parent.children.filter(id => id !== nodeId);
+      } else {
+        // 是根节点
+        session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
+      }
+      
+      // 删除所有节点数据
+      for (const id of nodesToRemove) {
+        delete session.allNodes[id];
+      }
+    }
   } else {
     showToast(t('deleteFailed', { error: result.error || 'Unknown error' }));
   }

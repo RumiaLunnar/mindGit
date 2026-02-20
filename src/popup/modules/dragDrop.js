@@ -318,7 +318,7 @@ async function handleSessionDrop(e) {
   }
   
   // 执行跨会话移动
-  await moveNodeToSession(draggedSessionId, targetSessionId, draggedNodeId);
+  await executeMoveToSession(draggedSessionId, targetSessionId, draggedNodeId);
   
   cleanupDragState();
 }
@@ -538,7 +538,7 @@ async function moveAsSibling(sessionId, nodeId, targetId, position) {
 /**
  * 跨会话移动节点
  */
-async function moveNodeToSession(fromSessionId, toSessionId, nodeId) {
+async function executeMoveToSession(fromSessionId, toSessionId, nodeId) {
   try {
     showToast('正在移动到其他会话...');
     
