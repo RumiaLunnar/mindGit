@@ -496,61 +496,24 @@ async function checkCloudOnStartup() {
 }
 
 /**
- * 显示同步通知
+ * 显示同步提示（静默模式 - 不弹窗）
  */
 function showSyncNotification(remoteData, remoteTime) {
-  // 移除已有通知
-  const existing = document.getElementById('syncNotification');
-  if (existing) existing.remove();
-  
+  // 仅在控制台输出提示，不弹出通知
   const date = new Date(remoteTime).toLocaleString();
+  console.log(`[MindGit] 云端有更新 (${date})，使用顶部☁️ 按钮手动同步`);
   
-  const notification = document.createElement('div');
-  notification.id = 'syncNotification';
-  notification.className = 'sync-notification';
-  notification.innerHTML = `
-    <div class="sync-notification-content">
-      <span class="sync-icon">☁️</span>
-      <div class="sync-info">
-        <div class="sync-title">发现云端数据</div>
-        <div class="sync-time">最后更新: ${date}</div>
-      </div>
-      <div class="sync-actions-inline">
-        <button id="syncRestoreBtn" class="sync-btn-primary">恢复</button>
-        <button id="syncDismissBtn" class="sync-btn-secondary">忽略</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // 动画显示
-  requestAnimationFrame(() => {
-    notification.classList.add('show');
-  });
-  
-  // 恢复按钮
-  notification.querySelector('#syncRestoreBtn').addEventListener('click', async () => {
-    notification.classList.remove('show');
-    setTimeout(() => notification.remove(), 300);
-    
-    await applyCloudData(remoteData);
-    showToast('已从云端恢复数据');
-  });
-  
-  // 忽略按钮
-  notification.querySelector('#syncDismissBtn').addEventListener('click', () => {
-    notification.classList.remove('show');
-    setTimeout(() => notification.remove(), 300);
-  });
-  
-  // 10 秒后自动消失
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.classList.remove('show');
-      setTimeout(() => notification.remove(), 300);
-    }
-  }, 10000);
+  // 可选：在状态栏显示微弱提示
+  const syncBtn = document.getElementById('syncBtn');
+  if (syncBtn) {
+    syncBtn.style.opacity = '0.8';
+    syncBtn.title = '云端有更新，点击同步';
+    // 3秒后恢复
+    setTimeout(() => {
+      syncBtn.style.opacity = '';
+      syncBtn.title = '云端同步';
+    }, 3000);
+  }
 }
 
 /**
