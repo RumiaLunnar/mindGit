@@ -130,11 +130,35 @@ function setupModalEvents() {
     closeRenameSession,
     confirmRenameSession,
     renameSessionModal,
-    renameSessionInput
+    renameSessionInput,
+    aboutLink,
+    aboutModal,
+    closeAbout
   } = state.elements;
   
   // 设置面板
   closeSettings.addEventListener('click', settings.closeSettings);
+  
+  // 关于链接
+  if (aboutLink) {
+    aboutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      aboutModal?.classList.add('active');
+    });
+  }
+  
+  // 关于面板
+  if (closeAbout) {
+    closeAbout.addEventListener('click', () => {
+      aboutModal?.classList.remove('active');
+    });
+  }
+  
+  if (aboutModal) {
+    aboutModal.addEventListener('click', (e) => {
+      if (e.target === aboutModal) aboutModal.classList.remove('active');
+    });
+  }
   
   saveSettings.addEventListener('click', async () => {
     await settings.saveSettings();
@@ -205,6 +229,7 @@ function setupModalEvents() {
       sessionUI.closeRenameSessionModal();
       snapshot.closeSnapshotModal();
       settings.closeSettings();
+      state.elements.aboutModal?.classList.remove('active');
     }
   });
 }

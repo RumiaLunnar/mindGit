@@ -6,6 +6,8 @@ import { showToast } from './toast.js';
 
 let draggedNodeId = null;
 let draggedSessionId = null;
+let dropIndicator = null;
+let dragGhost = null;
 
 /**
  * 初始化拖拽功能
@@ -14,6 +16,9 @@ export function initTreeDragDrop() {
   const treeContainer = document.getElementById('treeContainer');
   if (!treeContainer) return;
 
+  // 创建全局放置指示器
+  createDropIndicator();
+  
   // 为所有拖拽手柄绑定事件
   bindDragHandles(treeContainer);
   
@@ -24,20 +29,38 @@ export function initTreeDragDrop() {
   observer.observe(treeContainer, { childList: true, subtree: true });
 
   // 容器上的放置事件
-  treeContainer.addEventListener('dragover', handleDragOver);
+  treeContainer.addEventListener('dragover', handleDragOver, { passive: false });
   treeContainer.addEventListener('dragleave', handleDragLeave);
-  treeContainer.addEventListener('drop', handleDrop);
+  treeContainer.addEventListener('drop', handleDrop, { passive: false });
   
-  // 全局拖拽结束事件（防止拖拽到外部时无法清理）
-  document.addEventListener('dragend', () => {
-    document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-    document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
-      el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
-    });
-    document.body.classList.remove('is-dragging');
-    draggedNodeId = null;
-    draggedSessionId = null;
+  // 防止拖拽时页面滚动
+  treeContainer.addEventListener('dragenter', (e) => {
+    e.preventDefault();
   });
+  
+  // 全局拖拽结束事件
+  document.addEventListener('dragend', handleDragEnd);
+}
+
+/**
+ * 创建放置指示器
+ */
+function createDropIndicator() {
+  if (dropIndicator) return;
+  dropIndicator = document.createElement('div');
+  dropIndicator.className = 'drop-indicator';
+  dropIndicator.style.cssText = `
+    position: fixed;
+    height: 3px;
+    background: var(--primary-color, #4a90d9);
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.15s;
+    box-shadow: 0 0 4px var(--primary-color, #4a90d9);
+  `;
+  document.body.appendChild(dropIndicator);
 }
 
 /**
@@ -55,14 +78,11 @@ function bindDragHandles(container) {
     handle.addEventListener('dragstart', handleDragStart);
     handle.addEventListener('dragend', handleDragEnd);
     
-    // 确保手柄可拖拽
     handle.draggable = true;
   });
 }
 
 function handleDragStart(e) {
-  console.log('[MindGit] dragstart');
-  
   const handle = e.target;
   const nodeEl = handle.closest('.tree-node');
   
@@ -74,28 +94,39 @@ function handleDragStart(e) {
   draggedNodeId = nodeEl.dataset.nodeId;
   draggedSessionId = state.currentSessionId;
   
-  console.log('[MindGit] 开始拖拽:', draggedNodeId);
-  
+  // 设置拖拽效果
   e.dataTransfer.effectAllowed = 'move';
   e.dataTransfer.setData('text/plain', draggedNodeId);
   
+  // 隐藏默认拖拽图像，使用自定义样式
   nodeEl.classList.add('dragging');
   document.body.classList.add('is-dragging');
+  
+  // 在节点内显示拖拽中状态
+  const content = nodeEl.querySelector('.node-content');
+  if (content) {
+    content.style.opacity = '0.5';
+  }
 }
 
 function handleDragEnd(e) {
-  console.log('[MindGit] dragend 触发');
-  
-  // 清除所有拖拽相关样式
+  // 清理所有拖拽样式
   document.querySelectorAll('.dragging').forEach(el => {
     el.classList.remove('dragging');
+    const content = el.querySelector('.node-content');
+    if (content) content.style.opacity = '';
   });
   
-  document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
-    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+  document.querySelectorAll('.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
   });
   
   document.body.classList.remove('is-dragging');
+  
+  // 隐藏放置指示器
+  if (dropIndicator) {
+    dropIndicator.style.opacity = '0';
+  }
   
   draggedNodeId = null;
   draggedSessionId = null;
@@ -103,86 +134,165 @@ function handleDragEnd(e) {
 
 function handleDragOver(e) {
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
+  e.stopPropagation();
   
   if (!draggedNodeId) return;
   
+  e.dataTransfer.dropEffect = 'move';
+  
   const targetEl = e.target.closest('.tree-node');
   
-  // 清除旧样式
-  document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
-    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+  // 清理旧的高亮
+  document.querySelectorAll('.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
   });
   
-  if (!targetEl) return;
+  // 如果在空白区域，隐藏指示器
+  if (!targetEl) {
+    if (dropIndicator) dropIndicator.style.opacity = '0';
+    return;
+  }
   
   const targetNodeId = targetEl.dataset.nodeId;
-  if (targetNodeId === draggedNodeId) return;
-  if (isDescendant(draggedNodeId, targetNodeId)) return;
   
+  // 不能拖拽到自己
+  if (targetNodeId === draggedNodeId) {
+    if (dropIndicator) dropIndicator.style.opacity = '0';
+    return;
+  }
+  
+  // 检查是否是子节点
+  if (isDescendant(draggedNodeId, targetNodeId)) {
+    if (dropIndicator) dropIndicator.style.opacity = '0';
+    return;
+  }
+  
+  // 计算放置位置
   const rect = targetEl.getBoundingClientRect();
   const relativeY = e.clientY - rect.top;
   const height = rect.height;
   
-  if (relativeY < height * 0.3) {
-    targetEl.classList.add('drag-over-top');
-  } else if (relativeY > height * 0.7) {
-    targetEl.classList.add('drag-over-bottom');
-  } else {
-    targetEl.classList.add('drag-over-center');
+  let dropPosition = 'center';
+  if (relativeY < height * 0.25) {
+    dropPosition = 'top';
+  } else if (relativeY > height * 0.75) {
+    dropPosition = 'bottom';
   }
+  
+  // 设置目标节点高亮
+  targetEl.classList.add('drag-over');
+  targetEl.dataset.dropPosition = dropPosition;
+  
+  // 更新放置指示器位置
+  updateDropIndicator(rect, dropPosition);
+}
+
+function updateDropIndicator(rect, position) {
+  if (!dropIndicator) return;
+  
+  const treeContainer = document.getElementById('treeContainer');
+  const containerRect = treeContainer?.getBoundingClientRect();
+  if (!containerRect) return;
+  
+  const left = containerRect.left + 20; // 左侧缩进
+  const width = containerRect.width - 40;
+  
+  dropIndicator.style.left = left + 'px';
+  dropIndicator.style.width = width + 'px';
+  
+  if (position === 'top') {
+    dropIndicator.style.top = rect.top + 'px';
+  } else if (position === 'bottom') {
+    dropIndicator.style.top = (rect.bottom - 3) + 'px';
+  } else {
+    // center - 隐藏线条指示器，用背景色表示
+    dropIndicator.style.opacity = '0';
+    return;
+  }
+  
+  dropIndicator.style.opacity = '1';
 }
 
 function handleDragLeave(e) {
   const targetEl = e.target.closest('.tree-node');
   if (targetEl) {
-    targetEl.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+    targetEl.classList.remove('drag-over');
+    delete targetEl.dataset.dropPosition;
   }
 }
 
 async function handleDrop(e) {
   e.preventDefault();
+  e.stopPropagation();
   
-  console.log('[MindGit] ========== drop 触发 ==========');
-  console.log('[MindGit] draggedNodeId:', draggedNodeId, 'draggedSessionId:', draggedSessionId);
+  // 隐藏指示器
+  if (dropIndicator) {
+    dropIndicator.style.opacity = '0';
+  }
   
-  // 清除所有样式
-  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
-  document.querySelectorAll('.drag-over-top, .drag-over-bottom, .drag-over-center').forEach(el => {
-    el.classList.remove('drag-over-top', 'drag-over-bottom', 'drag-over-center');
+  // 清理高亮
+  document.querySelectorAll('.drag-over').forEach(el => {
+    el.classList.remove('drag-over');
+    delete el.dataset.dropPosition;
   });
-  document.body.classList.remove('is-dragging');
   
   if (!draggedNodeId || !draggedSessionId) {
-    console.log('[MindGit] 错误: 缺少拖拽数据');
+    cleanupDragState();
     return;
   }
   
   const targetEl = e.target.closest('.tree-node');
-  console.log('[MindGit] 目标元素:', targetEl?.dataset?.nodeId);
   
+  // 检查是否在空白区域放置（移到根节点）
   if (!targetEl) {
-    // 移到根节点
     await moveNode(draggedSessionId, draggedNodeId, null);
+    cleanupDragState();
     return;
   }
   
   const targetNodeId = targetEl.dataset.nodeId;
-  if (targetNodeId === draggedNodeId) return;
   
+  // 不能放到自己
+  if (targetNodeId === draggedNodeId) {
+    cleanupDragState();
+    return;
+  }
+  
+  // 检查循环
+  if (isDescendant(draggedNodeId, targetNodeId)) {
+    showToast('不能拖拽到子节点');
+    cleanupDragState();
+    return;
+  }
+  
+  // 获取放置位置
   const rect = targetEl.getBoundingClientRect();
   const relativeY = e.clientY - rect.top;
   const height = rect.height;
   
-  if (relativeY < height * 0.3) {
-    // 移到上方 - 成为兄弟节点
+  if (relativeY < height * 0.25) {
+    // 放在上方 - 成为兄弟节点（在目标前面）
     await moveAsSibling(draggedSessionId, draggedNodeId, targetNodeId, 'before');
+  } else if (relativeY > height * 0.75) {
+    // 放在下方 - 成为兄弟节点（在目标后面）
+    await moveAsSibling(draggedSessionId, draggedNodeId, targetNodeId, 'after');
   } else {
-    // 移到下方或中间 - 成为子节点
+    // 放在中间 - 成为子节点
     await moveNode(draggedSessionId, draggedNodeId, targetNodeId);
   }
   
-  // 清理状态
+  cleanupDragState();
+}
+
+function cleanupDragState() {
+  document.querySelectorAll('.dragging').forEach(el => {
+    el.classList.remove('dragging');
+    const content = el.querySelector('.node-content');
+    if (content) content.style.opacity = '';
+  });
+  
+  document.body.classList.remove('is-dragging');
+  
   draggedNodeId = null;
   draggedSessionId = null;
 }
@@ -193,11 +303,9 @@ function isDescendant(ancestorId, descendantId) {
   const session = state.currentSessions[state.currentSessionId];
   if (!session) return false;
   
-  // 检查 descendantId 是否是 ancestorId 的后代
   let node = session.allNodes[descendantId];
   while (node && node.parentId) {
     if (node.parentId === ancestorId) {
-      console.log('[MindGit] 检测到循环拖拽');
       return true;
     }
     node = session.allNodes[node.parentId];
@@ -206,11 +314,21 @@ function isDescendant(ancestorId, descendantId) {
 }
 
 async function moveNode(sessionId, nodeId, newParentId) {
-  console.log('[MindGit] 调用 moveNode:', { sessionId, nodeId, newParentId });
   try {
     const result = await api.moveNode(sessionId, nodeId, newParentId);
-    console.log('[MindGit] moveNode 结果:', result);
+    
+    if (!result) {
+      showToast('移动失败: 无响应');
+      return;
+    }
+    
     if (result.success) {
+      // 更新前端状态
+      const treeResult = await api.getSessionTree(sessionId);
+      if (treeResult.session) {
+        state.currentSessions[sessionId] = treeResult.session;
+      }
+      
       const { loadSessionView } = await import('./viewManager.js');
       await loadSessionView(sessionId);
       showToast(newParentId ? '已移动为子节点' : '已移动到根节点');
@@ -219,55 +337,80 @@ async function moveNode(sessionId, nodeId, newParentId) {
     }
   } catch (e) {
     console.error('[MindGit] moveNode 异常:', e);
-    showToast('移动失败: ' + e.message);
+    showToast('移动失败');
   }
 }
 
 async function moveAsSibling(sessionId, nodeId, targetId, position) {
-  console.log('[MindGit] 调用 moveAsSibling:', { sessionId, nodeId, targetId, position });
   try {
-    const session = state.currentSessions[sessionId];
-    const targetNode = session.allNodes[targetId];
-    const parentId = targetNode.parentId;
-    
-    console.log('[MindGit] 目标节点父ID:', parentId);
-    
-    // 先移到父节点下（如果父节点存在），否则移到根
-    let result = await api.moveNode(sessionId, nodeId, parentId);
-    console.log('[MindGit] moveNode 结果:', result);
-    
-    if (!result.success) {
-      showToast(result.error || '移动失败');
+    // 获取最新会话数据
+    const treeResult = await api.getSessionTree(sessionId);
+    if (!treeResult.session) {
+      showToast('加载会话失败');
       return;
     }
     
+    const session = treeResult.session;
+    const targetNode = session.allNodes[targetId];
+    if (!targetNode) {
+      showToast('目标节点不存在');
+      return;
+    }
+    
+    const parentId = targetNode.parentId;
+    
+    // 先移到父节点下
+    let result = await api.moveNode(sessionId, nodeId, parentId);
+    
+    if (!result || !result.success) {
+      showToast(result?.error || '移动失败');
+      return;
+    }
+    
+    // 重新获取数据调整顺序
+    const afterMoveResult = await api.getSessionTree(sessionId);
+    if (!afterMoveResult.session) {
+      showToast('获取数据失败');
+      return;
+    }
+    
+    const freshSession = afterMoveResult.session;
+    state.currentSessions[sessionId] = freshSession;
+    
     // 调整顺序
     if (parentId) {
-      const parent = session.allNodes[parentId];
-      const children = [...(parent.children || [])];
-      
-      const currentIndex = children.indexOf(nodeId);
-      if (currentIndex > -1) children.splice(currentIndex, 1);
-      
-      const targetIndex = children.indexOf(targetId);
-      if (targetIndex > -1) {
-        const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
-        children.splice(insertIndex, 0, nodeId);
-        parent.children = children;
-        await api.setStorage({ sessions: { ...state.currentSessions, [sessionId]: session } });
+      const parent = freshSession.allNodes[parentId];
+      if (parent) {
+        const children = [...(parent.children || [])];
+        const currentIndex = children.indexOf(nodeId);
+        if (currentIndex > -1) {
+          children.splice(currentIndex, 1);
+          let targetIndex = children.indexOf(targetId);
+          if (targetIndex > -1) {
+            if (position === 'after') targetIndex++;
+            children.splice(targetIndex, 0, nodeId);
+            parent.children = children;
+            await api.setStorage({ 
+              sessions: { ...state.currentSessions, [sessionId]: freshSession } 
+            });
+          }
+        }
       }
     } else {
-      // 根节点级别调整顺序
-      const rootNodes = [...session.rootNodes];
+      // 根节点级别
+      const rootNodes = [...freshSession.rootNodes];
       const currentIndex = rootNodes.indexOf(nodeId);
-      if (currentIndex > -1) rootNodes.splice(currentIndex, 1);
-      
-      const targetIndex = rootNodes.indexOf(targetId);
-      if (targetIndex > -1) {
-        const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
-        rootNodes.splice(insertIndex, 0, nodeId);
-        session.rootNodes = rootNodes;
-        await api.setStorage({ sessions: { ...state.currentSessions, [sessionId]: session } });
+      if (currentIndex > -1) {
+        rootNodes.splice(currentIndex, 1);
+        let targetIndex = rootNodes.indexOf(targetId);
+        if (targetIndex > -1) {
+          if (position === 'after') targetIndex++;
+          rootNodes.splice(targetIndex, 0, nodeId);
+          freshSession.rootNodes = rootNodes;
+          await api.setStorage({ 
+            sessions: { ...state.currentSessions, [sessionId]: freshSession } 
+          });
+        }
       }
     }
     

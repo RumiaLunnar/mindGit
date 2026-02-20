@@ -7,10 +7,29 @@
  */
 export async function sendMessage(message) {
   try {
+    // 首先尝试发送消息
     return await chrome.runtime.sendMessage(message);
   } catch (e) {
-    console.error('[MindGit] API 调用失败:', e);
-    return null;
+    // 如果失败，可能是 Service Worker 休眠，先唤醒它
+    console.warn('[MindGit] 首次发送失败，尝试唤醒 Service Worker:', e);
+    
+    try {
+      // 唤醒 Service Worker
+      await chrome.runtime.sendMessage({ action: 'ping' });
+    } catch (pingError) {
+      // ping 失败也没关系，继续尝试
+    }
+    
+    // 等待一点时间让 Service Worker 启动
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    try {
+      // 重新发送
+      return await chrome.runtime.sendMessage(message);
+    } catch (e2) {
+      console.error('[MindGit] API 调用失败:', e2);
+      return null;
+    }
   }
 }
 

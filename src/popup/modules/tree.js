@@ -62,8 +62,12 @@ function saveExpandedState() {
  */
 function createTreeNode(node, session, depth) {
   const container = document.createElement('div');
-  container.className = `tree-node depth-${Math.min(depth, 3)}`;
+  // 超过深度3后使用特殊类名限制缩进
+  const depthClass = depth > 3 ? 'depth-deep' : `depth-${depth}`;
+  container.className = `tree-node ${depthClass}`;
   container.dataset.nodeId = node.id;
+  container.dataset.depth = depth;
+  container.tabIndex = 0; // 使节点可焦点，支持键盘导航
   
   const hasChildren = node.children && node.children.length > 0;
   const isExpanded = state.expandedNodes.has(node.id) || state.currentSettings.defaultExpand !== false;
@@ -100,7 +104,7 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   const borderColor = depthColors[Math.min(depth, 3)];
   
   content.innerHTML = `
-    <span class="drag-handle" title="拖拽移动">::</span>
+    <span class="drag-handle" title="拖拽排序">::</span>
     <span class="node-toggle ${hasChildren ? '' : 'leaf'}" 
           style="transform: ${isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)'}; opacity: ${hasChildren ? 1 : 0.3};">
       ${hasChildren ? '▼' : '●'}

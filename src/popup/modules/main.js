@@ -10,6 +10,7 @@ import { initI18n, setLang, getCurrentLang } from './i18n.js';
 import { updateAllTexts } from './i18nUI.js';
 import { initSearch } from './search.js';
 import { initTreeDragDrop } from './dragDrop.js';
+import { initKeyboard } from './keyboard.js';
 
 /**
  * 诊断工具：输出当前状态
@@ -70,6 +71,9 @@ async function init() {
   
   // 初始化树形拖拽功能（容器事件）
   initTreeDragDrop();
+  
+  // 初始化快捷键系统
+  initKeyboard();
   
   // 应用会话列表初始折叠状态
   if (state.isSessionListExpanded) {

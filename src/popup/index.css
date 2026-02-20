@@ -618,6 +618,9 @@ body {
 /* 树形结构 - 无连接线 */
 .tree-wrapper {
   position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
 }
 
 .tree-node {
@@ -665,6 +668,29 @@ body {
   transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.2s ease-in,
               transform 0.2s ease-in;
+}
+
+/* 深层节点缩进优化 - 超过深度3后减小缩进 */
+.depth-deep .children-container {
+  margin-left: 10px;
+}
+
+/* 深层节点标识 - 显示省略号 */
+.depth-deep > .node-content {
+  position: relative;
+}
+
+.depth-deep > .node-content::before {
+  content: '⋯';
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  letter-spacing: -1px;
+  pointer-events: none;
 }
 
 /* 节点内容 - 带有动画效果 */
@@ -830,6 +856,11 @@ body {
 
 .depth-3 .node-content {
   border-left: 4px solid var(--depth-3-color, #bbdefb);
+}
+
+/* 深层节点（depth >= 4）统一使用浅灰色 */
+.depth-deep .node-content {
+  border-left: 3px solid var(--depth-3-color, #bbdefb);
 }
 
 /* 根节点特殊样式 */
@@ -1590,24 +1621,26 @@ body {
   font-weight: 500;
 }
 
-/* 拖拽样式 */
-/* 拖拽手柄 - 放在左侧 */
+/* ========== 拖拽样式 ========== */
+
+/* 拖拽手柄 */
 .drag-handle {
   font-size: 14px;
   color: var(--text-muted);
   cursor: grab;
-  padding: 4px 8px;
-  margin-right: 4px;
+  padding: 4px 6px;
+  margin-right: 2px;
   border-radius: 4px;
-  opacity: 0.3;
-  transition: all 0.2s ease;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
   user-select: none;
-  font-weight: bold;
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
 
 .node-content:hover .drag-handle {
-  opacity: 0.7;
+  opacity: 0.5;
 }
 
 .drag-handle:hover {
@@ -1620,41 +1653,216 @@ body {
   cursor: grabbing;
 }
 
-/* 拖拽状态 */
+/* 全局拖拽状态 */
+body.is-dragging {
+  cursor: grabbing;
+}
+
+body.is-dragging .tree-node {
+  transition: transform 0.1s;
+}
+
+/* 拖拽中的节点 */
 .tree-node.dragging {
-  opacity: 0.4;
+  opacity: 0.5;
 }
 
 .tree-node.dragging .node-content {
   background: var(--hover-bg);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-/* 放置位置指示 */
-.tree-node.drag-over-top,
-.tree-node.drag-over-bottom,
-.tree-node.drag-over-center {
-  position: relative;
+/* 放置目标高亮 */
+.tree-node.drag-over .node-content {
+  background: rgba(74, 144, 217, 0.15) !important;
+  border-radius: 6px;
 }
 
-.tree-node.drag-over-top::before,
-.tree-node.drag-over-bottom::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
+/* 放置位置指示器 */
+.drop-indicator {
+  position: fixed;
   height: 3px;
   background: var(--primary-color);
-  z-index: 100;
+  border-radius: 2px;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0;
+  box-shadow: 0 0 6px var(--primary-color), 0 0 12px var(--primary-color);
 }
 
-.tree-node.drag-over-top::before {
-  top: -2px;
+/* 关于链接 */
+.about-link {
+  margin-right: auto;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  transition: all 0.2s;
 }
 
-.tree-node.drag-over-bottom::before {
-  bottom: -2px;
+.about-link:hover {
+  color: var(--primary-color);
+  background: var(--hover-bg);
 }
 
-.tree-node.drag-over-center {
-  background: rgba(74, 144, 217, 0.1);
+/* 关于弹窗 - 紧凑版 */
+.about-modal-content {
+  max-width: 280px;
+}
+
+.about-body {
+  padding: 16px 20px 20px;
+  text-align: center;
+}
+
+.about-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.about-icon {
+  font-size: 36px;
+}
+
+.about-title {
+  text-align: left;
+}
+
+.about-title h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.about-version {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.about-links {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.about-link-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.about-link-btn:hover {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.about-footer {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ========== 快捷键系统样式 ========== */
+
+/* 键盘选中高亮 */
+.tree-node.keyboard-selected > .node-content {
+  background: var(--active-bg) !important;
+  border: 2px solid var(--primary-color) !important;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.2);
+}
+
+/* 快捷键帮助弹窗 */
+.help-modal-content {
+  max-width: 400px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.help-body {
+  padding: 20px;
+}
+
+.help-section {
+  margin-bottom: 20px;
+}
+
+.help-section:last-child {
+  margin-bottom: 0;
+}
+
+.help-section h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.help-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.help-item kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  padding: 3px 6px;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-right: 8px;
+  box-shadow: 0 1px 0 var(--border-color);
+}
+
+.help-item span {
+  color: var(--text-secondary);
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.help-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.help-footer kbd {
+  display: inline-flex;
+  padding: 2px 6px;
+  background: var(--hover-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  font-size: 11px;
 }
