@@ -215,32 +215,49 @@ body {
 
 .header-actions {
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
 
 .icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border: none;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
   color: white;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(4px);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(8px);
+  position: relative;
+  overflow: hidden;
+}
+
+.icon-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s;
 }
 
 .icon-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.icon-btn:hover::before {
+  opacity: 1;
 }
 
 .icon-btn:active {
-  transform: translateY(0);
+  transform: translateY(0) scale(0.95);
+  transition: all 0.1s;
 }
 
 .icon-btn.danger {
@@ -341,14 +358,28 @@ body {
 .session-item {
   display: flex;
   align-items: center;
-  padding: 8px 12px;
+  padding: 10px 14px;
   margin-bottom: 4px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   position: relative;
+  overflow: hidden;
+}
+
+.session-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--primary-color);
+  border-radius: 8px 0 0 8px;
+  transform: scaleY(0);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .session-item:last-child {
@@ -357,10 +388,22 @@ body {
 
 .session-item:hover {
   background: var(--hover-bg);
+  border-color: var(--border-color);
+  transform: translateX(2px);
+}
+
+.session-item:hover::before {
+  transform: scaleY(0.5);
 }
 
 .session-item.active {
   background: var(--active-bg);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.1);
+}
+
+.session-item.active::before {
+  transform: scaleY(1);
 }
 
 .session-item-icon {
@@ -651,23 +694,31 @@ body {
 
 /* 子节点容器 - 带有动画效果 */
 .children-container {
-  margin-left: 16px;
+  margin-left: 14px;
+  padding-left: 8px;
+  border-left: 2px solid var(--tree-line-color);
   overflow: hidden;
-  max-height: 2000px; /* 足够大的值以容纳内容 */
+  max-height: 2000px;
   opacity: 1;
   transform: translateY(0);
-  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.25s ease-out,
-              transform 0.25s ease-out;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease-out,
+              transform 0.3s ease-out,
+              border-color 0.3s;
+}
+
+.children-container:hover {
+  border-left-color: var(--tree-line-active);
 }
 
 .children-container.collapsed {
   max-height: 0;
   opacity: 0;
-  transform: translateY(-8px);
-  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-              opacity 0.2s ease-in,
-              transform 0.2s ease-in;
+  transform: translateY(-12px);
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.25s ease-in,
+              transform 0.25s ease-in,
+              border-color 0.3s;
 }
 
 /* 深层节点缩进优化 - 超过深度3后减小缩进 */
@@ -697,35 +748,54 @@ body {
 .node-content {
   display: flex;
   align-items: center;
-  padding: 6px 8px;
-  border-radius: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: background-color 0.2s ease,
-              border-color 0.2s ease,
-              transform 0.15s ease,
-              box-shadow 0.2s ease;
-  margin-bottom: 2px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 3px;
   background: var(--card-bg);
-  border: 1px solid var(--border-color);
+  border: 1px solid transparent;
   position: relative;
   z-index: 2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.node-content::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--depth-0-color);
+  border-radius: 8px 0 0 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
 }
 
 .node-content:hover {
   background: var(--hover-bg);
-  border-color: var(--primary-color);
-  transform: translateX(2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  border-color: var(--border-color);
+  transform: translateX(4px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.node-content:hover::before {
+  opacity: 0.6;
 }
 
 .node-content:active {
-  transform: translateX(1px);
+  transform: translateX(2px) scale(0.995);
 }
 
 .node-content.active {
   background: var(--active-bg);
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px rgba(74, 144, 217, 0.15);
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.12);
+}
+
+.node-content.active::before {
+  opacity: 1;
 }
 
 /* 展开/折叠按钮 - 带旋转动画 */
