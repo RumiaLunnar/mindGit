@@ -101,6 +101,10 @@
 git clone https://github.com/RumiaLunnar/mindGit.git
 cd mindGit
 ```
+## Todo
+- 修正偶尔出现的父子节点不匹配问题
+- 多添加一些git向的功能，比如保存快照，回退等
+
 
 ## 更新日志
 
