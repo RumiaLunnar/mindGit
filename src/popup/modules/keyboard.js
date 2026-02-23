@@ -76,7 +76,7 @@ function handleKeyDown(e) {
   
   if (key.toLowerCase() === 's' && !ctrl) {
     e.preventDefault();
-    openSettings();
+    openSettingsPanel();
     return;
   }
   
@@ -178,7 +178,7 @@ async function openNewSession() {
 /**
  * 打开设置
  */
-async function openSettings() {
+async function openSettingsPanel() {
   try {
     const { openSettings } = await import('./settings.js');
     if (openSettings) openSettings();

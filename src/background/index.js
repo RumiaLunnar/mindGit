@@ -826,13 +826,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // 第一步：先复制所有节点到新会话（保留完整的子节点关系）
         for (const id of nodesToMove) {
           const originalNode = fromSession.allNodes[id];
-          // 深拷贝，确保 children 数组也是新的
-          const newNode = {
-            ...originalNode,
-            children: originalNode.children ? [...originalNode.children] : [],
-            movedFrom: request.fromSessionId,
-            movedAt: Date.now()
-          };
+          // 使用 JSON 深拷贝确保完全独立
+          const newNode = JSON.parse(JSON.stringify(originalNode));
+          // 保留移动记录
+          newNode.movedFrom = request.fromSessionId;
+          newNode.movedAt = Date.now();
           
           // 只有被拖拽的根节点清空 parentId
           if (id === nodeId) {

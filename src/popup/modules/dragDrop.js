@@ -598,10 +598,10 @@ async function executeMoveToSession(fromSessionId, toSessionId, nodeId) {
       const { loadSessions } = await import('./sessionManager.js');
       await loadSessions();
       
-      // 如果当前会话是源会话，刷新视图
-      if (state.currentSessionId === fromSessionId) {
+      // 刷新当前会话视图（无论是源还是会话）
+      if (state.currentSessionId === fromSessionId || state.currentSessionId === toSessionId) {
         const { loadSessionView } = await import('./viewManager.js');
-        await loadSessionView(fromSessionId);
+        await loadSessionView(state.currentSessionId);
       }
       
       showToast(`已移动 ${result.movedCount} 个节点到其他会话`);
@@ -618,4 +618,14 @@ async function executeMoveToSession(fromSessionId, toSessionId, nodeId) {
 export function setupNodeDragDrop() {}
 export function initDragDrop() {
   initTreeDragDrop();
+}
+
+/**
+ * 手动刷新拖拽手柄绑定（在 tree 重新渲染后调用）
+ */
+export function refreshDragHandles() {
+  const treeContainer = document.getElementById('treeContainer');
+  if (treeContainer) {
+    bindDragHandles(treeContainer);
+  }
 }

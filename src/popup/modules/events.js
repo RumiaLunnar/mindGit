@@ -230,7 +230,6 @@ function setupModalEvents() {
     if (e.key === 'Escape') {
       sessionUI.closeNewSessionModal();
       sessionUI.closeRenameSessionModal();
-      snapshot.closeSnapshotModal();
       settings.closeSettings();
       state.elements.aboutModal?.classList.remove('active');
       state.elements.tokenConfigModal?.classList.remove('active');
@@ -387,30 +386,5 @@ function setupSyncEvents() {
     });
   }
   
-  // 从云端下载
-  if (downloadFromCloud) {
-    downloadFromCloud.addEventListener('click', async () => {
-      downloadFromCloud.disabled = true;
-      downloadFromCloud.textContent = '⬇️ 恢复中...';
-      const { downloadFromCloud: download } = await import('./gistSync.js');
-      const result = await download();
-      
-      if (result.conflict) {
-        if (confirm('本地数据比云端更新，是否覆盖本地？')) {
-          await download(true);
-        }
-      }
-      
-      downloadFromCloud.disabled = false;
-      downloadFromCloud.textContent = '⬇️ 从云端恢复';
-    });
-  }
-  
-  // Token 输入时实时显示/隐藏同步按钮
-  githubToken.addEventListener('input', () => {
-    const hasToken = githubToken.value.trim().length > 0;
-    if (syncActions) {
-      syncActions.style.display = hasToken ? 'flex' : 'none';
-    }
-  });
+
 }

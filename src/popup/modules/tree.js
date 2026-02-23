@@ -39,6 +39,10 @@ export async function loadTree(sessionId) {
   
   state.elements.treeContainer.innerHTML = '';
   state.elements.treeContainer.appendChild(treeHtml);
+  
+  // 刷新拖拽手柄绑定
+  const { refreshDragHandles } = await import('./dragDrop.js');
+  refreshDragHandles();
 }
 
 /**
@@ -104,7 +108,7 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   const borderColor = depthColors[Math.min(depth, 3)];
   
   content.innerHTML = `
-    <span class="drag-handle" title="拖拽排序">::</span>
+    <span class="drag-handle" draggable="true" title="拖拽排序">::</span>
     <span class="node-toggle ${hasChildren ? '' : 'leaf'}" 
           style="transform: ${isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)'}; opacity: ${hasChildren ? 1 : 0.3};">
       ${hasChildren ? '▼' : '●'}
