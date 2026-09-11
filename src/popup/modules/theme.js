@@ -80,10 +80,10 @@ export function applyColorTheme(themeName) {
   const { themeBtn } = state.elements;
   if (themeBtn) {
     if (state.isDarkMode) {
-      themeBtn.textContent = '☀️';
+      themeBtn.textContent = '☼';
       themeBtn.title = '切换到亮色模式';
     } else {
-      themeBtn.textContent = '🌙';
+      themeBtn.textContent = '◐';
       themeBtn.title = '切换到暗色模式';
     }
   }

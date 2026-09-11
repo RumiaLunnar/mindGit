@@ -2,43 +2,54 @@
 
 import { state } from './state.js';
 import * as api from './api.js';
-import { truncateText, generateFaviconUrl } from './utils.js';
+import { truncateText, getSafeFaviconUrl } from './utils.js';
 import { showToast } from './toast.js';
 import { t } from './i18n.js';
 import { sortTree, SORT_MODES } from './sort.js';
+
+const MAX_EAGER_TREE_NODES = 120;
 
 /**
  * 加载树形结构
  * @param {string} sessionId - 会话 ID
  */
-export async function loadTree(sessionId) {
-  const result = await api.getSessionTree(sessionId);
-  
-  if (!result.session || result.session.rootNodes.length === 0) {
+export async function loadTree(sessionId, providedSession = null) {
+  const session = providedSession || (await api.getSessionTree(sessionId))?.session;
+  if (!session || !Array.isArray(session.rootNodes) || session.rootNodes.length === 0) {
+    state.expandedNodes.clear();
+    state.expandedSessionId = null;
     showEmptyState();
     return;
   }
-  
-  // 保存当前的展开状态
-  saveExpandedState();
+
+  // 只在同一会话重新渲染时保存当前展开状态，避免切换会话时串用旧 DOM。
+  if (state.expandedSessionId === sessionId) {
+    saveExpandedState();
+  } else {
+    const shouldExpandByDefault = state.currentSettings?.defaultExpand !== false &&
+      Object.keys(session.allNodes || {}).length <= MAX_EAGER_TREE_NODES;
+    state.expandedNodes = shouldExpandByDefault
+      ? collectExpandableNodeIds(session)
+      : new Set();
+    state.expandedSessionId = sessionId;
+  }
   
   // 应用排序
   const sortMode = state.currentSettings?.sortMode || SORT_MODES.SMART;
-  const sortedSession = sortTree(result.session, sortMode);
+  const sortedSession = sortTree(session, sortMode);
   
-  const session = sortedSession;
+  const sortedTree = sortedSession;
   const treeHtml = document.createElement('div');
   treeHtml.className = 'tree-wrapper';
   
-  for (const rootId of session.rootNodes) {
-    const node = session.allNodes[rootId];
+  for (const rootId of sortedTree.rootNodes) {
+    const node = sortedTree.allNodes[rootId];
     if (node) {
-      treeHtml.appendChild(createTreeNode(node, session, 0));
+      treeHtml.appendChild(createTreeNode(node, sortedTree, 0));
     }
   }
   
-  state.elements.treeContainer.innerHTML = '';
-  state.elements.treeContainer.appendChild(treeHtml);
+  state.elements.treeContainer.replaceChildren(treeHtml);
   
   // 刷新拖拽手柄绑定
   const { refreshDragHandles } = await import('./dragDrop.js');
@@ -50,11 +61,36 @@ export async function loadTree(sessionId) {
  */
 function saveExpandedState() {
   const currentExpanded = new Set();
-  document.querySelectorAll('.children-container:not(.collapsed)').forEach(el => {
+  state.elements.treeContainer?.querySelectorAll('.children-container:not(.collapsed)').forEach(el => {
     const nodeId = el.closest('.tree-node')?.dataset.nodeId;
     if (nodeId) currentExpanded.add(nodeId);
   });
   state.expandedNodes = currentExpanded;
+}
+
+/**
+ * 收集默认需要展开的分支
+ * @param {Object} session - 会话数据
+ * @returns {Set<string>}
+ */
+function collectExpandableNodeIds(session) {
+  const expanded = new Set();
+  const visited = new Set();
+
+  function visit(nodeId) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+
+    const node = session.allNodes?.[nodeId];
+    if (!node) return;
+    if (node.children?.length) {
+      expanded.add(node.id);
+      node.children.forEach(visit);
+    }
+  }
+
+  (session.rootNodes || []).forEach(visit);
+  return expanded;
 }
 
 /**
@@ -64,7 +100,7 @@ function saveExpandedState() {
  * @param {number} depth - 深度
  * @returns {HTMLElement}
  */
-function createTreeNode(node, session, depth) {
+function createTreeNode(node, session, depth, ancestorIds = new Set()) {
   const container = document.createElement('div');
   // 超过深度3后使用特殊类名限制缩进
   const depthClass = depth > 3 ? 'depth-deep' : `depth-${depth}`;
@@ -72,15 +108,24 @@ function createTreeNode(node, session, depth) {
   container.dataset.nodeId = node.id;
   container.dataset.depth = depth;
   container.tabIndex = 0; // 使节点可焦点，支持键盘导航
+
+  const nextAncestorIds = new Set(ancestorIds);
+  nextAncestorIds.add(node.id);
   
   const hasChildren = node.children && node.children.length > 0;
-  const isExpanded = state.expandedNodes.has(node.id) || state.currentSettings.defaultExpand !== false;
+  const isExpanded = state.expandedNodes.has(node.id);
   
   const content = createNodeContent(node, hasChildren, isExpanded, depth);
   container.appendChild(content);
   
   if (hasChildren) {
-    const childrenContainer = createChildrenContainer(node, session, depth, isExpanded);
+    const childrenContainer = createChildrenContainer(
+      node,
+      session,
+      depth,
+      isExpanded,
+      nextAncestorIds
+    );
     container.appendChild(childrenContainer);
   }
   
@@ -99,7 +144,9 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   const content = document.createElement('div');
   content.className = 'node-content';
   
-  const faviconUrl = node.favIconUrl || generateFaviconUrl(node.url);
+  const faviconUrl = state.currentSettings.showFavicons === false
+    ? ''
+    : getSafeFaviconUrl(node.url, node.favIconUrl);
   const title = node.title || t('noTitle');
   const truncatedTitle = truncateText(title, 40);
   const visitCount = node.visitCount || 1;
@@ -107,19 +154,58 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
   const depthColors = ['var(--primary-color)', 'var(--text-secondary)', '#888', '#aaa'];
   const borderColor = depthColors[Math.min(depth, 3)];
   
-  content.innerHTML = `
-    <span class="drag-handle" draggable="true" title="拖拽排序">::</span>
-    <span class="node-toggle ${hasChildren ? '' : 'leaf'}" 
-          style="transform: ${isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)'}; opacity: ${hasChildren ? 1 : 0.3};">
-      ${hasChildren ? '▼' : '●'}
-    </span>
-    <img class="node-icon" src="${faviconUrl}" alt="" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🔍</text></svg>'">
-    <span class="node-title" title="${title}\n${node.url}">${truncatedTitle}</span>
-    ${visitCount > 1 ? `<span class="node-badge" title="${t('visitCount', { count: visitCount })}" style="border-color: ${borderColor}">${visitCount}</span>` : ''}
-  `;
+  const dragHandle = document.createElement('span');
+  dragHandle.className = 'drag-handle';
+  dragHandle.draggable = true;
+  dragHandle.title = '拖拽排序';
+  dragHandle.setAttribute('aria-hidden', 'true');
+  dragHandle.textContent = '::';
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = `node-toggle ${hasChildren ? '' : 'leaf'}`;
+  toggle.style.transform = isExpanded || !hasChildren ? 'rotate(0deg)' : 'rotate(-90deg)';
+  toggle.style.opacity = hasChildren ? '1' : '0.3';
+  toggle.setAttribute('aria-expanded', String(isExpanded));
+  toggle.setAttribute('aria-label', hasChildren
+    ? (isExpanded ? t('collapse') : t('expand'))
+    : t('noTitle'));
+  toggle.title = hasChildren ? (isExpanded ? t('collapse') : t('expand')) : t('noTitle');
+  toggle.textContent = hasChildren ? '▼' : '●';
+  toggle.disabled = !hasChildren;
+
+  const icon = document.createElement('img');
+  icon.className = 'node-icon';
+  icon.alt = '';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.loading = 'lazy';
+  icon.decoding = 'async';
+  if (faviconUrl) {
+    icon.src = faviconUrl;
+    icon.addEventListener('error', () => {
+      icon.classList.add('is-hidden');
+    }, { once: true });
+  } else {
+    icon.classList.add('is-hidden');
+  }
+
+  const titleElement = document.createElement('span');
+  titleElement.className = 'node-title';
+  titleElement.title = `${title}\n${node.url || ''}`;
+  titleElement.textContent = truncatedTitle;
+
+  content.append(dragHandle, toggle, icon, titleElement);
+
+  if (visitCount > 1) {
+    const badge = document.createElement('span');
+    badge.className = 'node-badge';
+    badge.title = t('visitCount', { count: visitCount });
+    badge.style.borderColor = borderColor;
+    badge.textContent = String(visitCount);
+    content.appendChild(badge);
+  }
   
   // 点击展开/折叠
-  const toggle = content.querySelector('.node-toggle');
   if (toggle && hasChildren) {
     toggle.onclick = (e) => {
       e.stopPropagation();
@@ -141,18 +227,29 @@ function createNodeContent(node, hasChildren, isExpanded, depth) {
 function createNodeActions(node) {
   const actions = document.createElement('div');
   actions.className = 'node-actions';
-  
-  actions.innerHTML = `
-    <button class="node-btn" title="${t('open')}">🔗</button>
-    <button class="node-btn" title="${t('delete')}">🗑️</button>
-  `;
-  
-  actions.children[0].onclick = (e) => {
+
+  const openButton = document.createElement('button');
+  openButton.type = 'button';
+  openButton.className = 'node-btn';
+  openButton.title = t('open');
+  openButton.setAttribute('aria-label', t('open'));
+  openButton.textContent = '↗';
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'node-btn';
+  deleteButton.title = t('delete');
+  deleteButton.setAttribute('aria-label', t('delete'));
+  deleteButton.textContent = '×';
+
+  actions.append(openButton, deleteButton);
+
+  openButton.onclick = (e) => {
     e.stopPropagation();
     api.openUrl(node.url);
   };
   
-  actions.children[1].onclick = (e) => {
+  deleteButton.onclick = (e) => {
     e.stopPropagation();
     if (confirm(t('deleteNodeConfirm'))) {
       deleteNode(node.id);
@@ -170,21 +267,52 @@ function createNodeActions(node) {
  * @param {boolean} isExpanded - 是否展开
  * @returns {HTMLElement}
  */
-function createChildrenContainer(node, session, depth, isExpanded) {
+function createChildrenContainer(node, session, depth, isExpanded, ancestorIds) {
   const container = document.createElement('div');
   container.className = 'children-container';
+  container.dataset.rendered = 'false';
+  container._mindGitTreeNode = node;
+  container._mindGitSession = session;
+  container._mindGitDepth = depth;
+  container._mindGitAncestorIds = ancestorIds;
   if (!isExpanded) {
     container.classList.add('collapsed');
   }
-  
-  for (const childId of node.children) {
+
+  if (isExpanded) {
+    renderChildren(container);
+  }
+
+  return container;
+}
+
+/**
+ * 按需创建一个分支的直接子节点，避免初次打开大树时递归创建全部 DOM。
+ * @param {HTMLElement} container - 子节点容器
+ */
+function renderChildren(container) {
+  if (!container || container.dataset.rendered === 'true') return;
+
+  const node = container._mindGitTreeNode;
+  const session = container._mindGitSession;
+  if (!node || !session) {
+    container.dataset.rendered = 'true';
+    return;
+  }
+
+  const depth = container._mindGitDepth;
+  const ancestorIds = container._mindGitAncestorIds || new Set([node.id]);
+
+  const fragment = document.createDocumentFragment();
+  for (const childId of node.children || []) {
+    if (ancestorIds.has(childId)) continue;
     const childNode = session.allNodes[childId];
     if (childNode) {
-      container.appendChild(createTreeNode(childNode, session, depth + 1));
+      fragment.appendChild(createTreeNode(childNode, session, depth + 1, ancestorIds));
     }
   }
-  
-  return container;
+  container.appendChild(fragment);
+  container.dataset.rendered = 'true';
 }
 
 /**
@@ -202,15 +330,22 @@ function toggleNode(nodeId, container) {
   
   if (isCollapsed) {
     // 展开
+    renderChildren(childrenContainer);
     childrenContainer.classList.remove('collapsed');
     toggle.classList.remove('collapsed');
     toggle.style.transform = 'rotate(0deg)';
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.title = t('collapse');
+    toggle.setAttribute('aria-label', t('collapse'));
     state.expandedNodes.add(nodeId);
   } else {
     // 折叠
     childrenContainer.classList.add('collapsed');
     toggle.classList.add('collapsed');
     toggle.style.transform = 'rotate(-90deg)';
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.title = t('expand');
+    toggle.setAttribute('aria-label', t('expand'));
     state.expandedNodes.delete(nodeId);
   }
 }
@@ -222,7 +357,7 @@ function toggleNode(nodeId, container) {
 async function deleteNode(nodeId) {
   const result = await api.deleteNode(state.currentSessionId, nodeId);
   
-  if (result.success) {
+  if (result?.success) {
     showToast(t('nodeDeleted'));
     
     // 静默删除：从 DOM 移除节点，不刷新整个树
@@ -263,9 +398,15 @@ async function deleteNode(nodeId) {
       for (const id of nodesToRemove) {
         delete session.allNodes[id];
       }
+
+      if (Object.keys(session.allNodes).length === 0) {
+        state.expandedNodes.clear();
+        state.expandedSessionId = null;
+        showEmptyState();
+      }
     }
   } else {
-    showToast(t('deleteFailed', { error: result.error || 'Unknown error' }));
+    showToast(t('deleteFailed', { error: result?.error || 'Unknown error' }));
   }
 }
 
@@ -278,6 +419,8 @@ export function highlightNode(nodeId) {
   document.querySelectorAll('.tree-node.search-highlight').forEach(el => {
     el.classList.remove('search-highlight');
   });
+
+  ensureNodeRendered(nodeId);
   
   // 找到节点元素
   const nodeEl = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
@@ -294,6 +437,12 @@ export function highlightNode(nodeId) {
         if (toggle) {
           toggle.style.transform = 'rotate(0deg)';
           toggle.classList.remove('collapsed');
+          toggle.setAttribute('aria-expanded', 'true');
+          toggle.title = t('collapse');
+          toggle.setAttribute('aria-label', t('collapse'));
+        }
+        if (parentNode?.dataset.nodeId) {
+          state.expandedNodes.add(parentNode.dataset.nodeId);
         }
       }
     }
@@ -310,6 +459,49 @@ export function highlightNode(nodeId) {
   setTimeout(() => {
     nodeEl.classList.remove('search-highlight');
   }, 3000);
+}
+
+/**
+ * 为搜索结果按需展开并渲染目标节点的父级路径。
+ * @param {string} nodeId - 节点 ID
+ */
+function ensureNodeRendered(nodeId) {
+  const session = state.currentSessions[state.currentSessionId];
+  const targetNode = session?.allNodes?.[nodeId];
+  if (!targetNode) return;
+
+  const ancestorIds = [];
+  const visited = new Set();
+  let currentNode = targetNode;
+  while (currentNode && !visited.has(currentNode.id)) {
+    visited.add(currentNode.id);
+    if (currentNode.parentId && session.allNodes[currentNode.parentId]) {
+      ancestorIds.unshift(currentNode.parentId);
+      currentNode = session.allNodes[currentNode.parentId];
+    } else {
+      break;
+    }
+  }
+
+  const treeContainer = state.elements.treeContainer;
+  for (const ancestorId of ancestorIds) {
+    const parentElement = treeContainer?.querySelector(`.tree-node[data-node-id="${ancestorId}"]`);
+    const childrenContainer = parentElement?.querySelector('.children-container');
+    if (!childrenContainer) continue;
+
+    renderChildren(childrenContainer);
+    childrenContainer.classList.remove('collapsed');
+    state.expandedNodes.add(ancestorId);
+
+    const toggle = parentElement.querySelector('.node-toggle');
+    if (toggle) {
+      toggle.classList.remove('collapsed');
+      toggle.style.transform = 'rotate(0deg)';
+      toggle.setAttribute('aria-expanded', 'true');
+      toggle.title = t('collapse');
+      toggle.setAttribute('aria-label', t('collapse'));
+    }
+  }
 }
 
 /**
@@ -332,39 +524,62 @@ export function highlightSession(sessionId) {
  * 显示空状态
  */
 export function showEmptyState() {
-  state.elements.treeContainer.innerHTML = `
-    <div class="empty-state">
-      <div class="empty-icon">🌱</div>
-      <p>还没有浏览记录</p>
-      <p class="empty-hint">开始浏览网页，我会帮你记录跳转脉络~</p>
-    </div>
-  `;
+  const emptyState = document.createElement('div');
+  emptyState.className = 'empty-state';
+
+  const icon = document.createElement('div');
+  icon.className = 'empty-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = '🌱';
+
+  const message = document.createElement('p');
+  message.textContent = t('noRecords');
+
+  const hint = document.createElement('p');
+  hint.className = 'empty-hint';
+  hint.textContent = t('startBrowsing');
+
+  emptyState.append(icon, message, hint);
+  state.elements.treeContainer.replaceChildren(emptyState);
 }
 
 /**
  * 展开全部节点 - 带动画效果
  */
 export function expandAll() {
-  // 先更新所有按钮状态
-  document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
+  const treeContainer = state.elements.treeContainer;
+  treeContainer?.classList.add('is-bulk-updating');
+
+  // 批量展开，避免为每个分支创建定时器。
+  let unrenderedContainer = treeContainer?.querySelector('.children-container[data-rendered="false"]');
+  while (unrenderedContainer) {
+    renderChildren(unrenderedContainer);
+    unrenderedContainer = treeContainer.querySelector('.children-container[data-rendered="false"]');
+  }
+
+  // 生成全部子树后再统一更新按钮状态，保证新生成的节点也同步展开状态。
+  treeContainer?.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
     el.style.transform = 'rotate(0deg)';
+    el.classList.remove('collapsed');
+    el.setAttribute('aria-expanded', 'true');
+    el.title = t('collapse');
+    el.setAttribute('aria-label', t('collapse'));
+  });
+
+  treeContainer?.querySelectorAll('.children-container.collapsed').forEach(el => {
     el.classList.remove('collapsed');
   });
   
-  // 逐层展开，添加延迟动画
-  const containers = document.querySelectorAll('.children-container.collapsed');
-  containers.forEach((el, index) => {
-    setTimeout(() => {
-      el.classList.remove('collapsed');
-    }, index * 30); // 每个容器延迟 30ms
-  });
-  
-  document.querySelectorAll('.tree-node').forEach(node => {
+  treeContainer?.querySelectorAll('.tree-node').forEach(node => {
     const nodeId = node.dataset.nodeId;
     if (node.querySelector('.children-container')) {
       state.expandedNodes.add(nodeId);
     }
   });
+  state.expandedSessionId = state.currentSessionId;
+  if (treeContainer) {
+    requestAnimationFrame(() => treeContainer.classList.remove('is-bulk-updating'));
+  }
   showToast(t('allExpanded'));
 }
 
@@ -372,17 +587,27 @@ export function expandAll() {
  * 折叠全部节点 - 带动画效果
  */
 export function collapseAll() {
+  const treeContainer = state.elements.treeContainer;
+  treeContainer?.classList.add('is-bulk-updating');
+
   // 先折叠容器
-  document.querySelectorAll('.children-container').forEach(el => {
+  treeContainer?.querySelectorAll('.children-container').forEach(el => {
     el.classList.add('collapsed');
   });
   
   // 更新按钮状态
-  document.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
+  treeContainer?.querySelectorAll('.node-toggle:not(.leaf)').forEach(el => {
     el.style.transform = 'rotate(-90deg)';
     el.classList.add('collapsed');
+    el.setAttribute('aria-expanded', 'false');
+    el.title = t('expand');
+    el.setAttribute('aria-label', t('expand'));
   });
   
   state.expandedNodes.clear();
+  state.expandedSessionId = state.currentSessionId;
+  if (treeContainer) {
+    requestAnimationFrame(() => treeContainer.classList.remove('is-bulk-updating'));
+  }
   showToast(t('allCollapsed'));
 }

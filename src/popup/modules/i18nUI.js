@@ -9,6 +9,8 @@ import { state } from './state.js';
 export function updateAllTexts() {
   // 头部
   updateElement('appName', t('appName'));
+  updateElement('brandEyebrow', t('brandEyebrow'));
+  updateTrackingUI();
   updateTitle('themeBtn', state.isDarkMode ? t('switchToLight') : t('switchToDark'));
   updateTitle('refreshBtn', t('refresh'));
   updateTitle('newSessionBtn', t('newSession'));
@@ -17,7 +19,9 @@ export function updateAllTexts() {
   updateTitle('settingsBtn', t('settings'));
   
   // 会话列表
-  updateElement('sessionListTitle', `📁 ${t('sessionList')}`);
+  updateElement('sessionListTitle', t('sessionList'));
+  updateElement('workspaceLabel', t('activeWorkspace'));
+  updateElement('noActiveSession', t('noActiveSession'));
   
   // 统计栏
   // 这个会动态更新，这里不需要处理
@@ -35,7 +39,12 @@ export function updateAllTexts() {
   updateElementText('exportSettingBtn', t('exportCurrentSessionBtn'));
   
   // 设置面板
-  updateElement('settingsTitle', `⚙️ ${t('settingsTitle')}`);
+  updateElement('settingsTitle', t('settingsTitle'));
+  updateElement('labelTrackingEnabled', t('trackingEnabled'));
+  updateElement('settingsTrackingSection', t('settingsTrackingSection'));
+  updateElement('settingsAppearanceSection', t('settingsAppearanceSection'));
+  updateElement('settingsDataSection', t('settingsDataSection'));
+  updateElement('labelCloudSync', t('cloudSync'));
   updateElement('labelMaxSessions', t('maxSessions'));
   updateElement('labelAutoClean', t('autoClean'));
   updateElement('labelShowFavicons', t('showFavicons'));
@@ -51,7 +60,7 @@ export function updateAllTexts() {
   updateElement('viewTimeline', t('timelineView'));
   
   // 搜索对话框
-  updateElement('searchTitle', `🔍 ${t('search')}`);
+  updateElement('searchTitle', t('search'));
   
   // 主题选项
   updateElement('themeDefault', t('themeDefault'));
@@ -71,7 +80,7 @@ export function updateAllTexts() {
   updateElementText('saveSettings', t('save'));
   
   // 新建会话对话框
-  updateElement('newSessionTitle', `📝 ${t('newSessionTitle')}`);
+  updateElement('newSessionTitle', t('newSessionTitle'));
   updateElement('newSessionLabel', t('sessionNameLabel'));
   const nameInput = document.getElementById('newSessionName');
   if (nameInput) {
@@ -80,11 +89,44 @@ export function updateAllTexts() {
   updateElementText('confirmNewSession', t('create'));
   
   // 重命名会话对话框
-  updateElement('renameSessionTitle', `✏️ ${t('renameSessionTitle')}`);
+  updateElement('renameSessionTitle', t('renameSessionTitle'));
   updateElement('renameSessionLabel', t('renameSessionLabel'));
   const renameInput = document.getElementById('renameSessionInput');
   if (renameInput) {
     renameInput.placeholder = t('renameSessionPlaceholder');
+  }
+}
+
+/**
+ * 更新记录开关和顶部状态
+ */
+export function updateTrackingUI() {
+  const enabled = state.currentSettings?.trackingEnabled !== false;
+  const {
+    trackingToggle,
+    trackingToggleText,
+    trackingHint,
+    recordingState,
+    recordingStateText
+  } = state.elements;
+
+  if (trackingToggle) {
+    trackingToggle.classList.toggle('is-off', !enabled);
+    trackingToggle.setAttribute('aria-pressed', String(enabled));
+    trackingToggle.title = t(enabled ? 'disableTracking' : 'enableTracking');
+  }
+  if (trackingToggleText) {
+    trackingToggleText.textContent = t(enabled ? 'trackingOn' : 'trackingOff');
+  }
+  if (trackingHint) {
+    trackingHint.textContent = t(enabled ? 'trackingHintOn' : 'trackingHintOff');
+  }
+  if (recordingState) {
+    recordingState.classList.toggle('is-paused', !enabled);
+    recordingState.title = t(enabled ? 'recordingTitle' : 'recordingPausedTitle');
+  }
+  if (recordingStateText) {
+    recordingStateText.textContent = t(enabled ? 'recording' : 'recordingPaused');
   }
 }
 

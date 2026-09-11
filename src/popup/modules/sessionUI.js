@@ -1,7 +1,7 @@
 // sessionUI.js - 会话列表 UI 渲染
 
 import { state } from './state.js';
-import { escapeHtml, formatDate } from './utils.js';
+import { formatDate } from './utils.js';
 import { t } from './i18n.js';
 import { showEmojiPicker, updateSessionEmoji } from './emojiPicker.js';
 
@@ -13,17 +13,21 @@ export function renderSessionList(sessions) {
   const { sessionList, sessionCount } = state.elements;
   
   sessionCount.textContent = t('sessionsCount', { count: sessions.length });
-  sessionList.innerHTML = '';
   
   if (sessions.length === 0) {
-    renderEmptyState(sessionList);
+    const emptyState = document.createDocumentFragment();
+    renderEmptyState(emptyState);
+    sessionList.replaceChildren(emptyState);
     return;
   }
+
+  const fragment = document.createDocumentFragment();
   
   for (const session of sessions) {
     const sessionItem = createSessionItem(session, session.id === state.currentSessionId);
-    sessionList.appendChild(sessionItem);
+    fragment.appendChild(sessionItem);
   }
+  sessionList.replaceChildren(fragment);
 }
 
 /**
@@ -31,13 +35,24 @@ export function renderSessionList(sessions) {
  * @param {HTMLElement} container - 容器
  */
 function renderEmptyState(container) {
-  container.innerHTML = `
-    <div class="session-list-empty">
-      <div class="session-list-empty-icon">🌱</div>
-      <div class="session-list-empty-text">还没有浏览记录</div>
-      <div class="session-list-empty-hint">开始浏览网页，我会帮你记录跳转脉络~</div>
-    </div>
-  `;
+  const empty = document.createElement('div');
+  empty.className = 'session-list-empty';
+
+  const icon = document.createElement('div');
+  icon.className = 'session-list-empty-icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = '+';
+
+  const text = document.createElement('div');
+  text.className = 'session-list-empty-text';
+  text.textContent = t('noRecords');
+
+  const hint = document.createElement('div');
+  hint.className = 'session-list-empty-hint';
+  hint.textContent = t('startBrowsing');
+
+  empty.append(icon, text, hint);
+  container.appendChild(empty);
 }
 
 /**
@@ -50,34 +65,63 @@ function createSessionItem(session, isActive) {
   const item = document.createElement('div');
   item.className = `session-item ${isActive ? 'active' : ''}`;
   item.dataset.sessionId = session.id;
+  item.tabIndex = 0;
+  item.setAttribute('role', 'button');
+  item.setAttribute('aria-current', isActive ? 'true' : 'false');
   
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
   const dateStr = formatDate(session.startTime);
   const emoji = session.emoji;
   
-  item.innerHTML = `
-    <div class="session-item-emoji ${emoji ? 'has-emoji' : ''}" title="点击设置标签">
-      ${emoji || (isActive ? '👆' : '📄')}
-    </div>
-    <div class="session-item-info">
-      <div class="session-item-name">${escapeHtml(session.name)}</div>
-      <div class="session-item-meta">${t('rootNodesCount', { count: rootCount })} · ${t('nodesCount', { count: nodeCount })} · ${dateStr}</div>
-    </div>
-    <div class="session-item-actions">
-      <button class="session-item-btn rename" title="${t('rename')}">✏️</button>
-      <button class="session-item-btn delete" title="${t('delete')}">🗑️</button>
-    </div>
-  `;
+  const emojiEl = document.createElement('button');
+  emojiEl.type = 'button';
+  emojiEl.className = `session-item-emoji ${emoji ? 'has-emoji' : ''}`;
+  emojiEl.title = '点击设置标签';
+  emojiEl.setAttribute('aria-label', '设置会话标签');
+  emojiEl.textContent = emoji || (isActive ? '●' : '○');
+
+  const info = document.createElement('div');
+  info.className = 'session-item-info';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'session-item-name';
+  nameEl.textContent = session.name || t('noActiveSession');
+  nameEl.title = session.name || t('noActiveSession');
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'session-item-meta';
+  metaEl.textContent = `${t('rootNodesCount', { count: rootCount })} | ${t('nodesCount', { count: nodeCount })} | ${dateStr}`;
+
+  info.append(nameEl, metaEl);
+
+  const actions = document.createElement('div');
+  actions.className = 'session-item-actions';
+
+  const renameButton = document.createElement('button');
+  renameButton.type = 'button';
+  renameButton.className = 'session-item-btn rename';
+  renameButton.title = t('rename');
+  renameButton.setAttribute('aria-label', t('rename'));
+  renameButton.textContent = '✎';
+
+  const deleteButton = document.createElement('button');
+  deleteButton.type = 'button';
+  deleteButton.className = 'session-item-btn delete';
+  deleteButton.title = t('delete');
+  deleteButton.setAttribute('aria-label', t('delete'));
+  deleteButton.textContent = '×';
+
+  actions.append(renameButton, deleteButton);
+  item.append(emojiEl, info, actions);
   
   // Emoji 点击事件
-  const emojiEl = item.querySelector('.session-item-emoji');
   emojiEl.addEventListener('click', (e) => {
     e.stopPropagation();
     showEmojiPicker(emojiEl, session.id, async (selectedEmoji) => {
       await updateSessionEmoji(session.id, selectedEmoji);
       // 刷新显示
-      emojiEl.textContent = selectedEmoji || (isActive ? '👆' : '📄');
+      emojiEl.textContent = selectedEmoji || (isActive ? '●' : '○');
       emojiEl.classList.toggle('has-emoji', !!selectedEmoji);
     });
   });

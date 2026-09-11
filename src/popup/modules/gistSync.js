@@ -255,6 +255,9 @@ export async function uploadToCloud(force = false) {
   
   if (result.success) {
     lastSyncTime = Date.now();
+    state.currentSettings.lastSyncTime = lastSyncTime;
+    const { setStorage } = await import('./api.js');
+    await setStorage({ settings: { ...state.currentSettings } });
     showToast('已同步到云端 ✓');
   } else {
     showToast('同步失败: ' + result.error);
@@ -342,7 +345,7 @@ export async function downloadFromCloud(force = false) {
  * 应用云端数据到本地
  */
 async function applyCloudData(data) {
-  if (!data) return;
+  if (!data || typeof data !== 'object') return;
   
   const { setStorage } = await import('./api.js');
   const { applyColorTheme } = await import('./theme.js');
@@ -353,32 +356,39 @@ async function applyCloudData(data) {
   const localToken = state.currentSettings.githubToken;
   const localGistId = state.currentSettings.gistId;
   
-  // 合并设置
-  if (data.settings) {
-    state.currentSettings = {
-      ...data.settings,
-      githubToken: localToken,      // 保留本地 Token
-      gistId: localGistId,          // 保留本地 Gist ID
-      lastSyncTime: Date.now()      // 更新同步时间
-    };
-    
-    // 应用主题
-    applyColorTheme(state.currentSettings.colorTheme || 'default');
-    
-    // 应用语言
-    if (data.settings.language) {
-      await setLang(data.settings.language);
-      updateAllTexts();
-    }
+  // 合并设置，保留本地 Token 和 Gist ID。
+  state.currentSettings = {
+    ...state.currentSettings,
+    ...(data.settings && typeof data.settings === 'object' ? data.settings : {}),
+    githubToken: localToken,
+    gistId: localGistId,
+    lastSyncTime: Date.now()
+  };
+
+  // 应用主题
+  applyColorTheme(state.currentSettings.colorTheme || 'default');
+
+  // 应用语言
+  if (data.settings?.language) {
+    await setLang(data.settings.language);
+    updateAllTexts();
   }
   
   // 合并会话数据
-  if (data.sessions) {
+  if (data.sessions && typeof data.sessions === 'object' && !Array.isArray(data.sessions)) {
     state.currentSessions = data.sessions;
   }
-  if (data.currentSessionId) {
-    state.currentSessionId = data.currentSessionId;
+
+  const requestedSessionId = data.currentSessionId;
+  if (requestedSessionId && state.currentSessions[requestedSessionId]) {
+    state.currentSessionId = requestedSessionId;
+  } else {
+    state.currentSessionId = Object.values(state.currentSessions)
+      .sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0]?.id || null;
   }
+
+  state.expandedNodes.clear();
+  state.expandedSessionId = null;
   
   // 保存到 storage
   await setStorage({
@@ -387,11 +397,9 @@ async function applyCloudData(data) {
     settings: state.currentSettings
   });
   
-  // 刷新视图
-  if (state.currentSessionId) {
-    const { loadSessionView } = await import('./viewManager.js');
-    await loadSessionView(state.currentSessionId);
-  }
+  // 通过统一入口刷新列表、视图、统计和数据指纹。
+  const { loadSessions } = await import('./sessionManager.js');
+  await loadSessions();
   
   showToast('已同步设置和会话数据');
 }
@@ -503,16 +511,11 @@ function showSyncNotification(remoteData, remoteTime) {
   const date = new Date(remoteTime).toLocaleString();
   console.log(`[MindGit] 云端有更新 (${date})，使用顶部☁️ 按钮手动同步`);
   
-  // 可选：在状态栏显示微弱提示
-  const syncBtn = document.getElementById('syncBtn');
-  if (syncBtn) {
-    syncBtn.style.opacity = '0.8';
-    syncBtn.title = '云端有更新，点击同步';
-    // 3秒后恢复
-    setTimeout(() => {
-      syncBtn.style.opacity = '';
-      syncBtn.title = '云端同步';
-    }, 3000);
+  // 在设置面板的同步状态上显示提示，避免依赖不存在的顶部按钮。
+  const syncStatus = state.elements.syncStatusText || document.getElementById('syncStatusText');
+  if (syncStatus) {
+    syncStatus.textContent = '有云端更新';
+    syncStatus.classList.add('has-update');
   }
 }
 
@@ -522,7 +525,7 @@ function showSyncNotification(remoteData, remoteTime) {
 export function getSyncStatus() {
   return {
     hasToken: !!getGitHubToken(),
-    lastSync: lastSyncTime,
+    lastSync: lastSyncTime || state.currentSettings?.lastSyncTime || 0,
     gistId: state.currentSettings?.gistId
   };
 }

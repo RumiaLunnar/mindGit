@@ -4,7 +4,7 @@
 // 存储结构：
 // sessions: { sessionId: { rootNodes: [], allNodes: {}, name, startTime } }
 // currentSession: 当前会话ID
-// tabToNode: { tabId: nodeId } - 记录每个标签页当前对应的节点
+// tabToNode: { tabId: { sessionId, nodeId } } - 记录标签页在对应会话中的当前节点
 
 let sessionCounter = 0;
 let nodeCounter = 0;
@@ -17,13 +17,25 @@ const DEBOUNCE_TIME = 2000; // 2秒内同一URL不重复记录
 // 防止重复捕获的标志
 let isCapturing = false;
 
-// Service Worker 保活 - 每 20 秒发送一次心跳
-const keepAliveInterval = setInterval(() => {
-  // 简单的存储操作来保持 Service Worker 活跃
-  chrome.storage.local.get('lastKeepAlive').then(result => {
-    chrome.storage.local.set({ lastKeepAlive: Date.now() });
-  });
-}, 20000);
+// 记录开关缓存。首次收到导航事件时从 storage 读取，设置变化后同步更新。
+let trackingEnabled = null;
+
+function normalizeTrackingEnabled(settings) {
+  return settings?.trackingEnabled !== false;
+}
+
+async function isTrackingEnabled() {
+  if (trackingEnabled !== null) return trackingEnabled;
+
+  const { settings } = await chrome.storage.local.get('settings');
+  trackingEnabled = normalizeTrackingEnabled(settings);
+  return trackingEnabled;
+}
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== 'local' || !changes.settings) return;
+  trackingEnabled = normalizeTrackingEnabled(changes.settings.newValue || {});
+});
 
 // 监听 popup 打开事件
 // 注意：只能有一个 onMessage 监听器，所有消息处理都在这里
@@ -35,6 +47,30 @@ function generateSessionId() {
 
 function generateNodeId() {
   return `node_${Date.now()}_${nodeCounter++}`;
+}
+
+/**
+ * 读取兼容旧版本的标签页节点映射
+ * @param {Object} tabToNode - 映射表
+ * @param {number} tabId - 标签页 ID
+ * @param {string} sessionId - 会话 ID
+ * @returns {string|null}
+ */
+function getTabNodeId(tabToNode, tabId, sessionId) {
+  const mapping = tabToNode?.[tabId];
+  if (!mapping) return null;
+
+  // 兼容 v1.3 及以前的 { tabId: nodeId } 结构。
+  if (typeof mapping === 'string') return mapping;
+  return mapping.sessionId === sessionId ? mapping.nodeId : null;
+}
+
+/**
+ * 写入带会话作用域的标签页节点映射
+ */
+function setTabNodeId(tabToNode, tabId, sessionId, nodeId) {
+  if (tabId === undefined || tabId === null) return;
+  tabToNode[tabId] = { sessionId, nodeId };
 }
 
 // 创建节点
@@ -67,7 +103,8 @@ chrome.runtime.onInstalled.addListener((details) => {
         autoCleanOldSessions: true,
         showFavicons: true,
         defaultExpand: true,
-        autoCreateSession: true
+        autoCreateSession: true,
+        trackingEnabled: true
       }
     });
     console.log('[mindGit] 首次安装，已初始化');
@@ -78,6 +115,9 @@ chrome.runtime.onInstalled.addListener((details) => {
       const settings = result.settings || {};
       if (typeof settings.autoCreateSession === 'undefined') {
         settings.autoCreateSession = true;
+      }
+      if (typeof settings.trackingEnabled === 'undefined') {
+        settings.trackingEnabled = true;
       }
       chrome.storage.local.set({ settings });
     });
@@ -105,6 +145,11 @@ self.addEventListener('activate', () => {
 
 // 捕获当前所有可记录的标签页
 async function captureCurrentTabs() {
+  if (!(await isTrackingEnabled())) {
+    console.log('[mindGit] 网页记录已停用，跳过启动捕获');
+    return;
+  }
+
   // 防止重复调用
   if (isCapturing) {
     console.log('[mindGit] 捕获进行中，跳过');
@@ -162,25 +207,47 @@ async function captureCurrentTabs() {
 
 // 检查URL是否应该被记录
 function shouldTrackUrl(url) {
-  if (!url) return false;
-  const excludedPrefixes = [
-    'chrome://',
-    'chrome-extension://',
-    'devtools://',
-    'file://',
-    'about:',
-    'javascript:',
-    'data:'
-  ];
-  return !excludedPrefixes.some(prefix => url.startsWith(prefix));
+  if (typeof url !== 'string' || !url.trim()) return false;
+
+  try {
+    const protocol = new URL(url).protocol;
+    return ['http:', 'https:', 'ftp:'].includes(protocol);
+  } catch (e) {
+    return false;
+  }
 }
 
 // 获取或创建会话
+function cleanupOldSessions(sessions, settings, protectedSessionId = null) {
+  if (settings?.autoCleanOldSessions === false) return [];
+
+  const maxSessions = Math.max(5, parseInt(settings?.maxSessions, 10) || 50);
+  const sessionIds = Object.keys(sessions || {});
+  if (sessionIds.length <= maxSessions) return [];
+
+  const sortedSessions = sessionIds
+    .map(id => ({ id, startTime: sessions[id]?.startTime || 0 }))
+    .sort((a, b) => b.startTime - a.startTime);
+  const deletedIds = [];
+
+  for (const session of sortedSessions) {
+    if (session.id === protectedSessionId) continue;
+    if (sessionIds.length - deletedIds.length <= maxSessions) break;
+    deletedIds.push(session.id);
+    delete sessions[session.id];
+  }
+
+  return deletedIds;
+}
+
 async function getOrCreateSession() {
-  const { sessions, currentSession } = await chrome.storage.local.get(['sessions', 'currentSession']);
+  const { sessions, currentSession, settings } = await chrome.storage.local.get([
+    'sessions', 'currentSession', 'settings'
+  ]);
+  const sessionMap = sessions && typeof sessions === 'object' ? sessions : {};
   
-  if (currentSession && sessions[currentSession]) {
-    return { sessions, sessionId: currentSession };
+  if (currentSession && sessionMap[currentSession]) {
+    return { sessions: sessionMap, sessionId: currentSession };
   }
   
   // 创建新会话
@@ -198,16 +265,17 @@ async function getOrCreateSession() {
     })}`
   };
   
-  sessions[newSessionId] = newSession;
+  sessionMap[newSessionId] = newSession;
+  cleanupOldSessions(sessionMap, settings, newSessionId);
   await chrome.storage.local.set({ 
-    sessions, 
+    sessions: sessionMap,
     currentSession: newSessionId,
     tabToNode: {},
     pendingSourceTab: {}
   });
   
   console.log('[mindGit] 创建新会话:', newSessionId);
-  return { sessions, sessionId: newSessionId };
+  return { sessions: sessionMap, sessionId: newSessionId };
 }
 
 // 检查是否是重复导航（防抖）
@@ -227,6 +295,7 @@ function isDuplicateNavigation(tabId, url) {
 
 // 添加节点到树 - 核心函数（带全局去重和防抖）
 async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null) {
+  if (!(await isTrackingEnabled())) return null;
   if (!shouldTrackUrl(url)) return null;
   
   // 防抖检查：短时间内同一URL不重复记录
@@ -236,7 +305,14 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   
   const { sessions, sessionId } = await getOrCreateSession();
   const session = sessions[sessionId];
-  const { tabToNode } = await chrome.storage.local.get('tabToNode');
+  session.rootNodes = Array.isArray(session.rootNodes) ? session.rootNodes : [];
+  session.allNodes = session.allNodes && typeof session.allNodes === 'object'
+    ? session.allNodes
+    : {};
+  const { tabToNode: storedTabToNode, settings } = await chrome.storage.local.get(['tabToNode', 'settings']);
+  const tabToNode = storedTabToNode && typeof storedTabToNode === 'object'
+    ? storedTabToNode
+    : {};
   
   // ========== 全局去重检查 ==========
   // 在整个会话中查找是否已存在相同 URL 的节点
@@ -254,7 +330,7 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
     existingNode.visitCount++;
     existingNode.timestamp = Date.now();
     existingNode.title = title || existingNode.title;
-    tabToNode[tabId] = existingNodeId;
+    setTabNodeId(tabToNode, tabId, sessionId, existingNodeId);
     
     // 更新 recentNavigations 中的 nodeId
     recentNavigations[tabId].nodeId = existingNodeId;
@@ -265,10 +341,18 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   }
   
   // ========== 创建新节点 ==========
+  const maxNodes = Number(settings?.maxNodesPerSession) || 500;
+  if (Object.keys(session.allNodes || {}).length >= maxNodes) {
+    console.warn('[mindGit] 已达到单会话节点上限:', maxNodes);
+    return null;
+  }
+
   const node = createNode(url, title, favIconUrl, parentNodeId);
   
   if (parentNodeId && session.allNodes[parentNodeId]) {
-    session.allNodes[parentNodeId].children.push(node.id);
+    const parent = session.allNodes[parentNodeId];
+    parent.children = parent.children || [];
+    parent.children.push(node.id);
     console.log('[mindGit] 添加子节点:', title, '父节点:', parentNodeId);
   } else {
     session.rootNodes.push(node.id);
@@ -277,7 +361,7 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
     // 自动命名：如果是新会话的第一个根节点，用页面标题命名
     if (session.rootNodes.length === 1 && title) {
       // 检查是否是默认名称（浏览会话 日期时间格式）
-      if (session.name.startsWith('浏览会话')) {
+      if ((session.name || '').startsWith('浏览会话')) {
         session.name = title.substring(0, 30) || session.name;
         console.log('[mindGit] 自动命名会话:', session.name);
       }
@@ -285,7 +369,7 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
   }
   
   session.allNodes[node.id] = node;
-  tabToNode[tabId] = node.id;
+  setTabNodeId(tabToNode, tabId, sessionId, node.id);
   
   // 更新 recentNavigations 中的 nodeId
   recentNavigations[tabId].nodeId = node.id;
@@ -296,11 +380,14 @@ async function addNodeToTree(url, title, favIconUrl, tabId, parentNodeId = null)
 
 // 获取或创建来源标签页的节点
 async function getOrCreateSourceNode(sourceTabId) {
-  const { tabToNode } = await chrome.storage.local.get(['tabToNode']);
+  const { tabToNode, sessions, currentSession } = await chrome.storage.local.get([
+    'tabToNode', 'sessions', 'currentSession'
+  ]);
   
   // 如果已经有节点，直接返回
-  if (tabToNode[sourceTabId]) {
-    return tabToNode[sourceTabId];
+  const existingNodeId = getTabNodeId(tabToNode, sourceTabId, currentSession);
+  if (existingNodeId && sessions?.[currentSession]?.allNodes?.[existingNodeId]) {
+    return existingNodeId;
   }
   
   // 否则创建节点
@@ -319,6 +406,7 @@ async function getOrCreateSourceNode(sourceTabId) {
 chrome.webNavigation.onCommitted.addListener(async (details) => {
   // 只处理主框架
   if (details.frameId !== 0) return;
+  if (!(await isTrackingEnabled())) return;
   if (!shouldTrackUrl(details.url)) return;
   
   const { transitionType, transitionQualifiers } = details;
@@ -332,11 +420,11 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
     const { tabToNode, sessions, currentSession } = await chrome.storage.local.get([
       'tabToNode', 'sessions', 'currentSession'
     ]);
-    
-    const currentNodeId = tabToNode[details.tabId];
-    if (currentNodeId && sessions[currentSession]) {
+
+    const currentNodeId = getTabNodeId(tabToNode, details.tabId, currentSession);
+    if (currentNodeId && sessions?.[currentSession]) {
       const session = sessions[currentSession];
-      const node = session.allNodes[currentNodeId];
+      const node = session.allNodes?.[currentNodeId];
       if (node && node.url === details.url) {
         node.timestamp = Date.now();
         try {
@@ -351,7 +439,16 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
   
   try {
     const tab = await chrome.tabs.get(details.tabId);
-    const { tabToNode, pendingSourceTab } = await chrome.storage.local.get(['tabToNode', 'pendingSourceTab']);
+    const storedState = await chrome.storage.local.get([
+      'tabToNode', 'pendingSourceTab', 'currentSession'
+    ]);
+    const tabToNode = storedState.tabToNode || {};
+    const pendingSourceTab = storedState.pendingSourceTab || {};
+    const currentNodeId = getTabNodeId(
+      tabToNode,
+      details.tabId,
+      storedState.currentSession
+    );
     
     let parentNodeId = null;
     
@@ -376,7 +473,6 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         await chrome.storage.local.set({ pendingSourceTab });
       } else if (isSearch) {
         // 当前页搜索
-        const currentNodeId = tabToNode[details.tabId];
         if (currentNodeId) {
           parentNodeId = currentNodeId;
           console.log('[mindGit] 当前页搜索，父节点:', parentNodeId);
@@ -394,7 +490,6 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
         await chrome.storage.local.set({ pendingSourceTab });
       } else {
         // 当前页提交
-        const currentNodeId = tabToNode[details.tabId];
         if (currentNodeId) {
           parentNodeId = currentNodeId;
           console.log('[mindGit] 表单提交，父节点:', parentNodeId);
@@ -402,12 +497,11 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
       }
     } else {
       // 其他类型
-      const currentNodeId = tabToNode[details.tabId];
       if (currentNodeId) {
         // 当前页跳转
         const { sessions, sessionId } = await getOrCreateSession();
         const session = sessions[sessionId];
-        const currentNode = session.allNodes[currentNodeId];
+        const currentNode = session.allNodes?.[currentNodeId];
         
         if (currentNode && currentNode.url !== details.url) {
           parentNodeId = currentNodeId;
@@ -436,10 +530,13 @@ chrome.webNavigation.onCommitted.addListener(async (details) => {
 // 监听历史记录状态更新（单页应用）
 chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
   if (details.frameId !== 0) return;
+  if (!(await isTrackingEnabled())) return;
   if (!shouldTrackUrl(details.url)) return;
   
-  const { tabToNode } = await chrome.storage.local.get('tabToNode');
-  const currentNodeId = tabToNode[details.tabId];
+  const { tabToNode = {}, currentSession } = await chrome.storage.local.get([
+    'tabToNode', 'currentSession'
+  ]);
+  const currentNodeId = getTabNodeId(tabToNode, details.tabId, currentSession);
   
   try {
     const tab = await chrome.tabs.get(details.tabId);
@@ -447,14 +544,14 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
     if (currentNodeId) {
       const { sessions, sessionId } = await getOrCreateSession();
       const session = sessions[sessionId];
-      const currentNode = session.allNodes[currentNodeId];
+      const currentNode = session.allNodes?.[currentNodeId];
       
       // 检查是否是跳转到已存在的节点
       let foundExisting = false;
       
       for (const [nodeId, node] of Object.entries(session.allNodes)) {
         if (node.url === details.url && nodeId !== currentNodeId) {
-          tabToNode[details.tabId] = nodeId;
+          setTabNodeId(tabToNode, details.tabId, sessionId, nodeId);
           await chrome.storage.local.set({ tabToNode });
           foundExisting = true;
           console.log('[mindGit] 切换到历史节点:', node.title);
@@ -473,8 +570,10 @@ chrome.webNavigation.onHistoryStateUpdated.addListener(async (details) => {
 
 // 监听标签页创建，记录来源（用于追踪右键菜单搜索等）
 chrome.tabs.onCreated.addListener(async (tab) => {
+  if (!(await isTrackingEnabled())) return;
   if (tab.openerTabId) {
-    const { pendingSourceTab } = await chrome.storage.local.get(['pendingSourceTab']);
+    const { pendingSourceTab: storedPendingSourceTab } = await chrome.storage.local.get(['pendingSourceTab']);
+    const pendingSourceTab = storedPendingSourceTab || {};
     pendingSourceTab[tab.id] = tab.openerTabId;
     await chrome.storage.local.set({ pendingSourceTab });
     console.log('[mindGit] 记录标签页来源:', tab.id, '来自:', tab.openerTabId);
@@ -483,7 +582,9 @@ chrome.tabs.onCreated.addListener(async (tab) => {
 
 // 监听导航目标创建（更可靠的新标签页来源追踪）
 chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
-  const { pendingSourceTab } = await chrome.storage.local.get(['pendingSourceTab']);
+  if (!(await isTrackingEnabled())) return;
+  const { pendingSourceTab: storedPendingSourceTab } = await chrome.storage.local.get(['pendingSourceTab']);
+  const pendingSourceTab = storedPendingSourceTab || {};
   pendingSourceTab[details.tabId] = details.sourceTabId;
   await chrome.storage.local.set({ pendingSourceTab });
   console.log('[mindGit] 记录导航来源:', details.tabId, '来自:', details.sourceTabId);
@@ -491,7 +592,12 @@ chrome.webNavigation.onCreatedNavigationTarget.addListener(async (details) => {
 
 // 监听标签页关闭，清理映射
 chrome.tabs.onRemoved.addListener(async (tabId) => {
-  const { tabToNode, pendingSourceTab } = await chrome.storage.local.get(['tabToNode', 'pendingSourceTab']);
+  const {
+    tabToNode: storedTabToNode,
+    pendingSourceTab: storedPendingSourceTab
+  } = await chrome.storage.local.get(['tabToNode', 'pendingSourceTab']);
+  const tabToNode = storedTabToNode || {};
+  const pendingSourceTab = storedPendingSourceTab || {};
   
   if (tabToNode[tabId]) {
     delete tabToNode[tabId];
@@ -539,8 +645,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   
   if (request.action === 'getSessionTree') {
     chrome.storage.local.get('sessions').then(result => {
-      const session = result.sessions[request.sessionId];
+      const session = result.sessions?.[request.sessionId];
       sendResponse({ session });
+    }).catch(err => {
+      sendResponse({ session: null, error: err.message });
     });
     return true;
   }
@@ -553,28 +661,34 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       pendingSourceTab: {}
     }).then(() => {
       sendResponse({ success: true });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'renameSession') {
     chrome.storage.local.get('sessions').then(result => {
-      const sessions = result.sessions;
+      const sessions = result.sessions || {};
       if (sessions[request.sessionId]) {
         sessions[request.sessionId].name = request.name;
         chrome.storage.local.set({ sessions }).then(() => {
           sendResponse({ success: true });
+        }).catch(err => {
+          sendResponse({ success: false, error: err.message });
         });
       } else {
         sendResponse({ success: false, error: '会话不存在' });
       }
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'deleteSession') {
     chrome.storage.local.get(['sessions', 'currentSession']).then(result => {
-      const sessions = result.sessions;
+      const sessions = result.sessions || {};
       delete sessions[request.sessionId];
       
       let newCurrentSession = result.currentSession;
@@ -587,16 +701,31 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         currentSession: newCurrentSession
       }).then(() => {
         sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'switchSession') {
-    chrome.storage.local.set({
-      currentSession: request.sessionId
-    }).then(() => {
-      sendResponse({ success: true });
+    chrome.storage.local.get('sessions').then(result => {
+      if (!result.sessions?.[request.sessionId]) {
+        sendResponse({ success: false, error: '会话不存在' });
+        return;
+      }
+
+      chrome.storage.local.set({
+        currentSession: request.sessionId
+      }).then(() => {
+        sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
+      });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
@@ -616,38 +745,63 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       })}`
     };
     
-    chrome.storage.local.get('sessions').then(result => {
-      const sessions = result.sessions;
+    chrome.storage.local.get(['sessions', 'settings']).then(result => {
+      const sessions = result.sessions && typeof result.sessions === 'object'
+        ? result.sessions
+        : {};
       sessions[newSessionId] = newSession;
+      cleanupOldSessions(sessions, result.settings, newSessionId);
       
       chrome.storage.local.set({
         sessions,
         currentSession: newSessionId
       }).then(() => {
         sendResponse({ success: true, sessionId: newSessionId });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'addNode') {
     // 为特定会话添加节点
-    chrome.storage.local.get(['sessions', 'tabToNode']).then(result => {
-      const sessions = result.sessions;
+    chrome.storage.local.get(['sessions', 'tabToNode', 'settings']).then(result => {
+      if (result.settings?.trackingEnabled === false) {
+        sendResponse({ success: false, error: '网页记录已停用' });
+        return;
+      }
+
+      const sessions = result.sessions || {};
       const session = sessions[request.sessionId];
       
       if (!session) {
         sendResponse({ success: false, error: '会话不存在' });
         return;
       }
+
+      session.rootNodes = Array.isArray(session.rootNodes) ? session.rootNodes : [];
+      session.allNodes = session.allNodes && typeof session.allNodes === 'object'
+        ? session.allNodes
+        : {};
       
       const { url, title, favIconUrl, tabId, parentNodeId } = request;
+
+      const maxNodes = Number(result.settings?.maxNodesPerSession) || 500;
+      if (Object.keys(session.allNodes || {}).length >= maxNodes) {
+        sendResponse({ success: false, error: `已达到单会话节点上限（${maxNodes}）` });
+        return;
+      }
       
       // 创建新节点
       const node = createNode(url, title, favIconUrl, parentNodeId);
       
       if (parentNodeId && session.allNodes[parentNodeId]) {
-        session.allNodes[parentNodeId].children.push(node.id);
+        const parent = session.allNodes[parentNodeId];
+        parent.children = parent.children || [];
+        parent.children.push(node.id);
       } else {
         session.rootNodes.push(node.id);
       }
@@ -655,26 +809,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       session.allNodes[node.id] = node;
       
       const tabToNode = result.tabToNode || {};
-      tabToNode[tabId] = node.id;
+      setTabNodeId(tabToNode, tabId, request.sessionId, node.id);
       
       // 更新会话名称（如果是第一个根节点）
-      if (session.rootNodes.length === 1 && title && session.name.startsWith('浏览会话')) {
+      if (session.rootNodes.length === 1 && title && (session.name || '').startsWith('浏览会话')) {
         session.name = title.substring(0, 30) || session.name;
       }
       
       chrome.storage.local.set({ sessions, tabToNode }).then(() => {
         sendResponse({ success: true, nodeId: node.id });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
   
   if (request.action === 'deleteNode') {
     chrome.storage.local.get(['sessions', 'tabToNode']).then(result => {
-      const sessions = result.sessions;
+      const sessions = result.sessions || {};
       const session = sessions[request.sessionId];
       
-      if (!session || !session.allNodes[request.nodeId]) {
+      if (!session?.allNodes?.[request.nodeId]) {
         sendResponse({ success: false, error: '节点不存在' });
         return;
       }
@@ -692,7 +850,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       }
       
       // 递归删除所有子节点
+      const deletedNodeIds = new Set();
       const deleteRecursive = (id) => {
+        if (deletedNodeIds.has(id)) return;
+        deletedNodeIds.add(id);
         const n = session.allNodes[id];
         if (n && n.children) {
           n.children.forEach(childId => deleteRecursive(childId));
@@ -703,15 +864,24 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       
       // 清理 tabToNode 中的引用
       const tabToNode = result.tabToNode || {};
-      for (const [tabId, nId] of Object.entries(tabToNode)) {
-        if (nId === nodeId || !session.allNodes[nId]) {
+      for (const [tabId, mapping] of Object.entries(tabToNode)) {
+        const mappedNodeId = typeof mapping === 'string' ? mapping : mapping?.nodeId;
+        const mappedSessionId = typeof mapping === 'string'
+          ? request.sessionId
+          : mapping?.sessionId;
+
+        if (mappedSessionId === request.sessionId && deletedNodeIds.has(mappedNodeId)) {
           delete tabToNode[tabId];
         }
       }
       
       chrome.storage.local.set({ sessions, tabToNode }).then(() => {
         sendResponse({ success: true });
+      }).catch(err => {
+        sendResponse({ success: false, error: err.message });
       });
+    }).catch(err => {
+      sendResponse({ success: false, error: err.message });
     });
     return true;
   }
@@ -720,10 +890,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     (async () => {
       try {
         const result = await chrome.storage.local.get('sessions');
-        const sessions = result.sessions;
+        const sessions = result.sessions || {};
         const session = sessions[request.sessionId];
         
-        if (!session || !session.allNodes[request.nodeId]) {
+        if (!session?.allNodes?.[request.nodeId]) {
           sendResponse({ success: false, error: '节点不存在' });
           return;
         }
@@ -731,11 +901,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         const nodeId = request.nodeId;
         const node = session.allNodes[nodeId];
         const newParentId = request.newParentId;
+
+        if (newParentId && !session.allNodes[newParentId]) {
+          sendResponse({ success: false, error: '目标节点不存在' });
+          return;
+        }
         
         // 检查是否拖拽到自己或子节点
         if (newParentId) {
           let checkNode = session.allNodes[newParentId];
-          while (checkNode) {
+          const visited = new Set();
+          while (checkNode && !visited.has(checkNode.id)) {
+            visited.add(checkNode.id);
             if (checkNode.id === nodeId) {
               sendResponse({ success: false, error: '不能拖拽到自己或子节点' });
               return;
@@ -747,10 +924,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         // 从原父节点中移除
         if (node.parentId && session.allNodes[node.parentId]) {
           const oldParent = session.allNodes[node.parentId];
-          oldParent.children = oldParent.children.filter(id => id !== nodeId);
+          oldParent.children = (oldParent.children || []).filter(id => id !== nodeId);
         } else {
           // 是根节点，从 rootNodes 移除
-          session.rootNodes = session.rootNodes.filter(id => id !== nodeId);
+          session.rootNodes = (session.rootNodes || []).filter(id => id !== nodeId);
         }
         
         // 更新父节点
@@ -765,6 +942,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           newParent.children.push(nodeId);
         } else {
           // 成为根节点
+          session.rootNodes = session.rootNodes || [];
           session.rootNodes.push(nodeId);
         }
         
@@ -783,9 +961,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('[mindGit] 开始跨会话移动:', request);
     (async () => {
       try {
-        const result = await chrome.storage.local.get('sessions');
+        const result = await chrome.storage.local.get(['sessions', 'tabToNode', 'settings']);
         console.log('[mindGit] 读取 sessions 成功');
-        const sessions = result.sessions;
+        const sessions = result.sessions || {};
         const fromSession = sessions[request.fromSessionId];
         const toSession = sessions[request.toSessionId];
         
@@ -796,7 +974,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
         
         const nodeId = request.nodeId;
-        const node = fromSession.allNodes[nodeId];
+        const node = fromSession.allNodes?.[nodeId];
         
         if (!node) {
           console.log('[mindGit] 节点不存在:', nodeId);
@@ -807,7 +985,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         console.log('[mindGit] 开始移动节点:', nodeId);
         
         // 递归收集所有子节点
+        const visitedNodeIds = new Set();
         function collectNodes(nodeId, nodes) {
+          if (visitedNodeIds.has(nodeId)) return;
+          visitedNodeIds.add(nodeId);
           const node = fromSession.allNodes[nodeId];
           if (!node) return;
           nodes.push(nodeId);
@@ -822,38 +1003,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         collectNodes(nodeId, nodesToMove);
         
         console.log('[mindGit] 收集到节点:', nodesToMove);
+
+        const maxNodes = Number(result.settings?.maxNodesPerSession) || 500;
+        if (Object.keys(toSession.allNodes || {}).length + nodesToMove.length > maxNodes) {
+          sendResponse({ success: false, error: `目标会话最多保存 ${maxNodes} 个节点` });
+          return;
+        }
+
+        fromSession.rootNodes = fromSession.rootNodes || [];
+        fromSession.allNodes = fromSession.allNodes || {};
+        toSession.rootNodes = toSession.rootNodes || [];
+        toSession.allNodes = toSession.allNodes || {};
+
+        const idMap = new Map(nodesToMove.map(id => [id, generateNodeId()]));
         
         // 第一步：先复制所有节点到新会话（保留完整的子节点关系）
         for (const id of nodesToMove) {
           const originalNode = fromSession.allNodes[id];
           // 使用 JSON 深拷贝确保完全独立
           const newNode = JSON.parse(JSON.stringify(originalNode));
+          newNode.id = idMap.get(id);
           // 保留移动记录
           newNode.movedFrom = request.fromSessionId;
           newNode.movedAt = Date.now();
           
           // 只有被拖拽的根节点清空 parentId
-          if (id === nodeId) {
-            newNode.parentId = null;
-          }
+          newNode.parentId = id === nodeId
+            ? null
+            : (idMap.get(originalNode.parentId) || null);
+          newNode.children = (originalNode.children || [])
+            .map(childId => idMap.get(childId))
+            .filter(Boolean);
           
-          toSession.allNodes[id] = newNode;
+          toSession.allNodes[newNode.id] = newNode;
         }
         
         console.log('[mindGit] 已复制节点到新会话');
         
         // 第二步：添加根节点到新会话的 rootNodes
-        toSession.rootNodes.push(nodeId);
+        toSession.rootNodes.push(idMap.get(nodeId));
         
-        // 第三步：从原会话移除节点引用
-        for (const id of nodesToMove) {
-          const node = fromSession.allNodes[id];
-          if (node.parentId && fromSession.allNodes[node.parentId]) {
-            const parent = fromSession.allNodes[node.parentId];
-            parent.children = parent.children.filter(childId => childId !== id);
-          } else {
-            fromSession.rootNodes = fromSession.rootNodes.filter(rootId => rootId !== id);
-          }
+        // 第三步：从原会话移除根节点引用
+        if (node.parentId && fromSession.allNodes[node.parentId]) {
+          const parent = fromSession.allNodes[node.parentId];
+          parent.children = (parent.children || []).filter(childId => childId !== nodeId);
+        } else {
+          fromSession.rootNodes = fromSession.rootNodes.filter(rootId => rootId !== nodeId);
         }
         
         console.log('[mindGit] 已从原会话移除节点引用');
@@ -862,8 +1057,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         for (const id of nodesToMove) {
           delete fromSession.allNodes[id];
         }
+
+        // 同步修正标签页映射，避免映射到已经不存在的源会话节点。
+        const tabToNode = result.tabToNode || {};
+        const movedIdSet = new Set(nodesToMove);
+        for (const [tabId, mapping] of Object.entries(tabToNode)) {
+          const mappedNodeId = typeof mapping === 'string' ? mapping : mapping?.nodeId;
+          const mappedSessionId = typeof mapping === 'string'
+            ? request.fromSessionId
+            : mapping?.sessionId;
+
+          if (mappedSessionId === request.fromSessionId && movedIdSet.has(mappedNodeId)) {
+            setTabNodeId(tabToNode, tabId, request.toSessionId, idMap.get(mappedNodeId));
+          }
+        }
         
-        await chrome.storage.local.set({ sessions });
+        await chrome.storage.local.set({ sessions, tabToNode });
         console.log('[mindGit] 移动成功:', nodesToMove.length, '个节点');
         sendResponse({ success: true, movedCount: nodesToMove.length });
       } catch (e) {
@@ -1003,35 +1212,5 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
-
-// 定期检查并清理旧会话
-setInterval(async () => {
-  try {
-    const { sessions, settings } = await chrome.storage.local.get(['sessions', 'settings']);
-    
-    // 保护性检查：确保设置有效
-    const maxSessions = Math.max(5, parseInt(settings?.maxSessions) || 50);
-    const autoClean = settings?.autoCleanOldSessions !== false;
-    
-    if (!autoClean) return;
-    
-    const sessionIds = Object.keys(sessions || {});
-    if (sessionIds.length > maxSessions) {
-      const sortedSessions = sessionIds
-        .map(id => ({ id, startTime: sessions[id].startTime }))
-        .sort((a, b) => b.startTime - a.startTime);
-      
-      const toDelete = sortedSessions.slice(maxSessions);
-      for (const s of toDelete) {
-        delete sessions[s.id];
-      }
-      
-      await chrome.storage.local.set({ sessions });
-      console.log('[mindGit] 清理了', toDelete.length, '个旧会话');
-    }
-  } catch (e) {
-    console.error('[mindGit] 清理会话出错:', e);
-  }
-}, 60000);
 
 console.log('[mindGit] 后台脚本已加载');

@@ -8,6 +8,7 @@ let searchQuery = '';
 let searchResults = [];
 let currentResultIndex = -1;
 let isSearchModalOpen = false;
+let searchTimer = null;
 
 /**
  * 打开搜索弹窗
@@ -24,6 +25,10 @@ export function openSearchModal() {
   searchQuery = '';
   searchResults = [];
   currentResultIndex = -1;
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
   
   // 绑定搜索输入事件
   searchInput.oninput = handleSearchInput;
@@ -42,6 +47,10 @@ export function closeSearchModal() {
   searchQuery = '';
   searchResults = [];
   currentResultIndex = -1;
+  if (searchTimer) {
+    clearTimeout(searchTimer);
+    searchTimer = null;
+  }
   
   // 清除高亮
   document.querySelectorAll('.search-highlight').forEach(el => {
@@ -56,8 +65,16 @@ function handleSearchInput(e) {
   searchQuery = e.target.value.trim().toLowerCase();
   
   if (searchQuery) {
-    performSearch(searchQuery);
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      searchTimer = null;
+      performSearch(searchQuery);
+    }, 120);
   } else {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
     clearSearchResults();
   }
 }

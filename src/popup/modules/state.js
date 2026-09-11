@@ -5,7 +5,7 @@ export const state = {
   currentSessionId: null,
   currentSettings: {},
   expandedNodes: new Set(),
-  lastDataHash: null,
+  expandedSessionId: null,
   isDarkMode: false,
   refreshTimeout: null,
   elements: {},
@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS = {
   showFavicons: true,
   defaultExpand: true,
   autoCreateSession: true,
+  trackingEnabled: true,
   colorTheme: 'default',
   language: 'zh',
   sortMode: 'smart',  // 默认智能排序
@@ -30,10 +31,19 @@ export const DEFAULT_SETTINGS = {
 export function initElements() {
   state.elements = {
     themeBtn: document.getElementById('themeBtn'),
+    brandEyebrow: document.getElementById('brandEyebrow'),
+    recordingState: document.getElementById('recordingState'),
+    recordingStateText: document.getElementById('recordingStateText'),
+    trackingToggle: document.getElementById('trackingToggle'),
+    trackingToggleText: document.getElementById('trackingToggleText'),
+    trackingHint: document.getElementById('trackingHint'),
     sessionListContainer: document.getElementById('sessionListContainer'),
     sessionListHeader: document.getElementById('sessionListHeader'),
     sessionList: document.getElementById('sessionList'),
     sessionCount: document.getElementById('sessionCount'),
+    workspaceLabel: document.getElementById('workspaceLabel'),
+    activeSessionName: document.getElementById('activeSessionName'),
+    viewModeBadge: document.getElementById('viewModeBadge'),
     treeContainer: document.getElementById('treeContainer'),
     statsInfo: document.getElementById('statsInfo'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -89,11 +99,6 @@ export function initElements() {
     sortMode: document.getElementById('sortMode'),
     viewMode: document.getElementById('viewMode'),
     // GitHub Gist 同步
-    githubToken: document.getElementById('githubToken'),
-    validateTokenBtn: document.getElementById('validateTokenBtn'),
-    syncActions: document.getElementById('syncActions'),
-    uploadToCloud: document.getElementById('uploadToCloud'),
-    downloadFromCloud: document.getElementById('downloadFromCloud'),
-    syncStatus: document.getElementById('syncStatus')
+    syncStatusText: document.getElementById('syncStatusText')
   };
 }

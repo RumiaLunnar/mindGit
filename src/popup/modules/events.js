@@ -10,6 +10,7 @@ import * as search from './search.js';
 import * as exportModule from './export.js';
 
 import { showToast } from './toast.js';
+import { t } from './i18n.js';
 
 /**
  * 切换会话列表展开/收起状态
@@ -23,6 +24,10 @@ function toggleSessionList() {
   } else {
     sessionListContainer.classList.remove('expanded');
   }
+  sessionListContainer.querySelector('.session-list-header')?.setAttribute(
+    'aria-expanded',
+    String(state.isSessionListExpanded)
+  );
 }
 
 /**
@@ -46,10 +51,12 @@ function setupHeaderEvents() {
   
   // 刷新按钮
   refreshBtn.addEventListener('click', async () => {
-    refreshBtn.innerHTML = '<span class="loading-spinner"></span>';
+    const spinner = document.createElement('span');
+    spinner.className = 'loading-spinner';
+    refreshBtn.replaceChildren(spinner);
     await sessionManager.loadSessions();
-    refreshBtn.innerHTML = '🔄';
-    showToast('已刷新');
+    refreshBtn.textContent = '↻';
+    showToast(t('refreshed'));
   });
   
   // 新建会话
@@ -66,6 +73,12 @@ function setupHeaderEvents() {
   
   // 会话列表展开/收起
   sessionListHeader.addEventListener('click', toggleSessionList);
+  sessionListHeader.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      toggleSessionList();
+    }
+  });
 }
 
 /**
@@ -96,6 +109,17 @@ function setupSessionEvents() {
     // 点击整个项切换会话
     sessionManager.switchToSession(sessionId);
   });
+
+  sessionList.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    if (e.target.closest('.session-item-btn, .session-item-emoji')) return;
+
+    const item = e.target.closest('.session-item');
+    if (!item?.dataset.sessionId) return;
+
+    e.preventDefault();
+    sessionManager.switchToSession(item.dataset.sessionId);
+  });
 }
 
 /**
@@ -121,6 +145,7 @@ function setupModalEvents() {
   const {
     closeSettings,
     saveSettings,
+    trackingToggle,
     settingsModal,
     exportSettingBtn,
     closeNewSession,
@@ -138,6 +163,10 @@ function setupModalEvents() {
   
   // 设置面板
   closeSettings.addEventListener('click', settings.closeSettings);
+
+  if (trackingToggle) {
+    trackingToggle.addEventListener('click', settings.toggleTracking);
+  }
   
   // 关于链接
   if (aboutLink) {
@@ -163,9 +192,6 @@ function setupModalEvents() {
   saveSettings.addEventListener('click', async () => {
     await settings.saveSettings();
     settings.closeSettings();
-    if (state.currentSessionId) {
-      await tree.loadTree(state.currentSessionId);
-    }
   });
   
   settingsModal.addEventListener('click', (e) => {

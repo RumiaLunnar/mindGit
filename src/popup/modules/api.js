@@ -1,5 +1,7 @@
 // api.js - 与后台脚本通信的 API
 
+import { isSafeUrl } from './utils.js';
+
 /**
  * 发送消息到后台脚本
  * @param {Object} message - 消息对象
@@ -135,6 +137,12 @@ export async function addNode(params) {
  */
 export async function openUrl(url) {
   console.log('[MindGit popup] 打开 URL:', url);
+
+  if (!isSafeUrl(url)) {
+    console.warn('[MindGit popup] 拒绝打开不安全 URL');
+    return { success: false, error: '不支持的 URL 协议' };
+  }
+
   try {
     // 先查找是否已有相同 URL 的标签页
     const allTabs = await chrome.tabs.query({});
@@ -220,8 +228,11 @@ export async function setStorage(data) {
  */
 export function onStorageChanged(callback) {
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName === 'local' && changes.sessions) {
-      callback(changes.sessions);
+    const relevantKeys = ['sessions', 'currentSession', 'settings'];
+    const hasRelevantChange = relevantKeys.some(key => changes[key]);
+
+    if (areaName === 'local' && hasRelevantChange) {
+      callback(changes);
     }
   });
 }

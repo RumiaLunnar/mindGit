@@ -7,6 +7,8 @@ const TRANSLATIONS = {
   zh: {
     // 头部
     appName: 'MindGit',
+    brandEyebrow: '浏览脉络',
+    recording: '记录中',
     switchToLight: '切换到亮色模式',
     switchToDark: '切换到暗色模式',
     refresh: '刷新',
@@ -24,7 +26,7 @@ const TRANSLATIONS = {
     
     // 统计栏
     noActiveSession: '无活动会话',
-    sessionStats: '{name} · {rootCount} 个起点 · {nodeCount} 个页面',
+    sessionStats: '{name} / {rootCount} 个起点 / {nodeCount} 个页面',
     rootNodesCount: '{count} 个起点',
     nodesCount: '{count} 个页面',
     
@@ -46,6 +48,10 @@ const TRANSLATIONS = {
     searchPlaceholder: '搜索会话和节点...',
     searchResults: '找到 {count} 个结果',
     noSearchResults: '未找到匹配的会话或节点',
+    timelineStatsNodes: '共 {count} 个页面',
+    timelineStatsDays: '{count} 天的记录',
+    timelineDateSummary: '{pages} 页面 / {sites} 个网站',
+    timelineStartBrowsing: '开始浏览网页，我会帮你记录时间线~',
     
     // 导出
     exportCurrentSessionBtn: '导出当前会话',
@@ -71,6 +77,29 @@ const TRANSLATIONS = {
     
     // 设置面板
     settingsTitle: '设置',
+    trackingEnabled: '网页记录',
+    trackingHintOn: '记录当前标签页的网页跳转',
+    trackingHintOff: '已暂停记录，不会再新增页面',
+    trackingOn: '已启用',
+    trackingOff: '已停用',
+    recordingPaused: '已暂停',
+    recordingTitle: '正在记录网页跳转',
+    recordingPausedTitle: '网页记录已停用',
+    enableTracking: '启用网页记录',
+    disableTracking: '停用网页记录',
+    trackingEnabledToast: '网页记录已启用',
+    trackingDisabledToast: '网页记录已停用',
+    trackingSaveFailed: '保存记录状态失败',
+    settingsTrackingSection: '记录',
+    settingsAppearanceSection: '界面',
+    settingsDataSection: '数据',
+    cloudSync: '云端同步',
+    syncConfigured: '已配置',
+    syncNotConfigured: '未配置',
+    configureToken: '配置 Token',
+    modifyToken: '修改 Token',
+    upload: '上传',
+    download: '下载',
     maxSessions: '最大保存会话数',
     autoClean: '自动清理旧会话',
     showFavicons: '显示网站图标',
@@ -96,11 +125,14 @@ const TRANSLATIONS = {
     viewMode: '视图模式',
     treeView: '树形视图',
     timelineView: '时间线视图',
+    activeWorkspace: '当前工作区',
+    treeShort: 'TREE',
+    timelineShort: 'TIMELINE',
     
     smartSort: '智能综合排序',
     sortByTime: '最近访问优先',
     sortByChildren: '子节点数量优先',
-    sortByVisits: '访问次数优允',
+    sortByVisits: '访问次数优先',
     
     // 新建会话
     newSessionTitle: '新建会话',
@@ -137,6 +169,8 @@ const TRANSLATIONS = {
   en: {
     // Header
     appName: 'MindGit',
+    brandEyebrow: 'BROWSE PATHS',
+    recording: 'Recording',
     switchToLight: 'Switch to Light Mode',
     switchToDark: 'Switch to Dark Mode',
     refresh: 'Refresh',
@@ -154,7 +188,7 @@ const TRANSLATIONS = {
     
     // Stats Bar
     noActiveSession: 'No active session',
-    sessionStats: '{name} · {rootCount} roots · {nodeCount} pages',
+    sessionStats: '{name} / {rootCount} roots / {nodeCount} pages',
     rootNodesCount: '{count} roots',
     nodesCount: '{count} pages',
     
@@ -176,6 +210,10 @@ const TRANSLATIONS = {
     searchPlaceholder: 'Search sessions and nodes...',
     searchResults: 'Found {count} results',
     noSearchResults: 'No matching sessions or nodes found',
+    timelineStatsNodes: '{count} pages',
+    timelineStatsDays: '{count} days',
+    timelineDateSummary: '{pages} pages / {sites} sites',
+    timelineStartBrowsing: 'Start browsing and I\'ll build the timeline.',
     
     // Export
     exportCurrentSessionBtn: 'Export Current Session',
@@ -201,6 +239,29 @@ const TRANSLATIONS = {
     
     // Settings Panel
     settingsTitle: 'Settings',
+    trackingEnabled: 'Web page recording',
+    trackingHintOn: 'Track navigation in the current browser tabs',
+    trackingHintOff: 'Recording is paused. New pages will not be added',
+    trackingOn: 'Enabled',
+    trackingOff: 'Disabled',
+    recordingPaused: 'Paused',
+    recordingTitle: 'Recording page navigation',
+    recordingPausedTitle: 'Web page recording is disabled',
+    enableTracking: 'Enable web page recording',
+    disableTracking: 'Disable web page recording',
+    trackingEnabledToast: 'Web page recording enabled',
+    trackingDisabledToast: 'Web page recording disabled',
+    trackingSaveFailed: 'Could not save recording state',
+    settingsTrackingSection: 'Recording',
+    settingsAppearanceSection: 'Interface',
+    settingsDataSection: 'Data',
+    cloudSync: 'Cloud sync',
+    syncConfigured: 'Configured',
+    syncNotConfigured: 'Not configured',
+    configureToken: 'Configure token',
+    modifyToken: 'Change token',
+    upload: 'Upload',
+    download: 'Download',
     maxSessions: 'Max Sessions to Keep',
     autoClean: 'Auto Clean Old Sessions',
     showFavicons: 'Show Website Icons',
@@ -226,6 +287,9 @@ const TRANSLATIONS = {
     viewMode: 'View Mode',
     treeView: 'Tree View',
     timelineView: 'Timeline View',
+    activeWorkspace: 'Active workspace',
+    treeShort: 'TREE',
+    timelineShort: 'TIMELINE',
     
     smartSort: 'Smart Sort',
     sortByTime: 'Recent First',

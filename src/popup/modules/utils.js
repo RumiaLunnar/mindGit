@@ -54,6 +54,7 @@ export function escapeHtml(text) {
 export function generateFaviconUrl(url) {
   try {
     const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) return '';
     return `https://www.google.com/s2/favicons?domain=${urlObj.hostname}&sz=32`;
   } catch (e) {
     return '';
@@ -61,21 +62,30 @@ export function generateFaviconUrl(url) {
 }
 
 /**
- * 计算会话数据的哈希值
- * @param {Object} sessions - 会话数据
+ * 检查 URL 是否允许被浏览器打开
+ * @param {string} url - URL
+ * @returns {boolean}
+ */
+export function isSafeUrl(url) {
+  if (typeof url !== 'string' || !url.trim()) return false;
+
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:', 'ftp:'].includes(parsed.protocol);
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * 获取可信的网站图标地址
+ * @param {string} url - 页面 URL
+ * @param {string} preferredUrl - 页面记录下来的图标 URL
  * @returns {string}
  */
-export function hashSessions(sessions) {
-  if (!sessions) return '';
-  const keys = Object.keys(sessions).sort();
-  let hash = '';
-  for (const key of keys) {
-    const session = sessions[key];
-    const rootCount = session.rootNodes?.length || 0;
-    const nodeCount = Object.keys(session.allNodes || {}).length;
-    hash += `${key}:${rootCount},${nodeCount};`;
-  }
-  return hash;
+export function getSafeFaviconUrl(url, preferredUrl = '') {
+  if (isSafeUrl(preferredUrl)) return preferredUrl;
+  return generateFaviconUrl(url);
 }
 
 /**
@@ -116,7 +126,7 @@ export function formatDate(timestamp) {
  * @returns {boolean}
  */
 export function shouldTrackUrl(url) {
-  if (!url) return false;
+  if (!isSafeUrl(url)) return false;
   const excludedPrefixes = [
     'chrome://',
     'chrome-extension://',

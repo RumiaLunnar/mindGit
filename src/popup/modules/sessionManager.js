@@ -5,59 +5,84 @@ import * as api from './api.js';
 import * as utils from './utils.js';
 import { showToast } from './toast.js';
 import { renderSessionList } from './sessionUI.js';
-import { loadTree, showEmptyState } from './tree.js';
+import { showEmptyState } from './tree.js';
 import { loadSessionView } from './viewManager.js';
 import { t } from './i18n.js';
-import { getText } from './i18nUI.js';
+
+const REFRESH_DEBOUNCE_MS = 220;
+let refreshInFlight = false;
+let refreshQueued = false;
+
+function updateWorkspaceMeta() {
+  const activeName = state.elements.activeSessionName;
+  if (!activeName) return;
+
+  const session = state.currentSessionId
+    ? state.currentSessions[state.currentSessionId]
+    : null;
+
+  activeName.textContent = session?.name || t('noActiveSession');
+  activeName.title = session?.name || t('noActiveSession');
+
+  if (state.elements.viewModeBadge) {
+    state.elements.viewModeBadge.textContent = state.currentSettings?.viewMode === 'timeline'
+      ? t('timelineShort')
+      : t('treeShort');
+  }
+}
 
 /**
  * 加载所有会话
  */
 export async function loadSessions() {
   try {
-    console.log('[MindGit] loadSessions 开始');
     const result = await api.getSessions();
-    console.log('[MindGit] getSessions 返回:', result);
     
     if (!result || typeof result.sessions === 'undefined') {
       console.warn('[MindGit] 加载会话失败，保留现有数据');
       return false;
     }
-    
-    // 保护性检查：防止数据异常丢失
-    const existingCount = Object.keys(state.currentSessions).length;
-    const newCount = Object.keys(result.sessions || {}).length;
-    console.log(`[MindGit] 现有会话: ${existingCount}, 新会话: ${newCount}`);
-    
-    if (existingCount > 0 && newCount === 0) {
-      console.warn('[MindGit] 检测到会话数据异常，保留现有数据');
-      return false;
+
+    const previousSessionId = state.currentSessionId;
+    const sessions = result.sessions && typeof result.sessions === 'object'
+      ? result.sessions
+      : {};
+
+    state.currentSessions = sessions;
+
+    // currentSession 是后台脚本的单一事实来源。兼容旧版本没有该字段的存储。
+    if (Object.prototype.hasOwnProperty.call(result, 'currentSession')) {
+      state.currentSessionId = result.currentSession && sessions[result.currentSession]
+        ? result.currentSession
+        : null;
+    } else if (!state.currentSessionId || !sessions[state.currentSessionId]) {
+      state.currentSessionId = Object.values(sessions)
+        .sort((a, b) => (b.startTime || 0) - (a.startTime || 0))[0]?.id || null;
+    }
+
+    if (previousSessionId !== state.currentSessionId) {
+      state.expandedNodes.clear();
+      state.expandedSessionId = null;
     }
     
-    state.currentSessions = result.sessions || {};
-    if (!state.currentSessionId) {
-      state.currentSessionId = result.currentSession;
-    }
-    
-    state.lastDataHash = utils.hashSessions(state.currentSessions);
-    
-    // 如果当前会话不在列表中，清空选择
-    if (state.currentSessionId && !state.currentSessions[state.currentSessionId]) {
-      state.currentSessionId = null;
-    }
+    updateWorkspaceMeta();
     
     const sortedSessions = Object.values(state.currentSessions)
-      .sort((a, b) => b.startTime - a.startTime);
+      .sort((a, b) => (b.startTime || 0) - (a.startTime || 0));
     
     renderSessionList(sortedSessions);
     
-    if (state.currentSessionId && state.currentSessions[state.currentSessionId]) {
-      await loadSessionView(state.currentSessionId);
+    const activeSession = state.currentSessionId
+      ? state.currentSessions[state.currentSessionId]
+      : null;
+
+    if (activeSession) {
+      await loadSessionView(state.currentSessionId, activeSession);
     } else {
       showEmptyState();
     }
     
-    await updateStats();
+    await updateStats(activeSession);
     return true;
   } catch (e) {
     console.error('[MindGit] 加载会话出错:', e);
@@ -71,21 +96,19 @@ export async function loadSessions() {
  */
 export async function switchToSession(sessionId) {
   if (sessionId === state.currentSessionId) return;
-  
-  state.currentSessionId = sessionId;
+
+  const previousSessionId = state.currentSessionId;
   state.expandedNodes.clear();
-  
-  await api.switchSession(sessionId);
-  
-  const result = await api.getSessions();
-  state.currentSessions = result.sessions || {};
-  
-  const sortedSessions = Object.values(state.currentSessions)
-    .sort((a, b) => b.startTime - a.startTime);
-  renderSessionList(sortedSessions);
-  
-  await loadSessionView(sessionId);
-  await updateStats();
+  state.expandedSessionId = null;
+
+  const result = await api.switchSession(sessionId);
+  if (!result?.success) {
+    state.currentSessionId = previousSessionId;
+    showToast(t('sessionNotFound'));
+    return;
+  }
+
+  await loadSessions();
 }
 
 /**
@@ -95,8 +118,9 @@ export async function switchToSession(sessionId) {
 export async function createSession(name) {
   const result = await api.createNewSession(name || undefined);
   
-  if (result.success) {
+  if (result?.success) {
     state.expandedNodes.clear();
+    state.expandedSessionId = null;
     state.currentSessionId = result.sessionId;
     await loadSessions();
     showToast(t('sessionCreated'));
@@ -145,11 +169,16 @@ export async function deleteSession(sessionId) {
     return;
   }
   
-  await api.deleteSession(sessionId);
+  const result = await api.deleteSession(sessionId);
+  if (!result?.success) {
+    showToast(t('deleteFailed', { error: result?.error || 'Unknown error' }));
+    return;
+  }
   
   if (state.currentSessionId === sessionId) {
     state.currentSessionId = null;
     state.expandedNodes.clear();
+    state.expandedSessionId = null;
   }
   
   await loadSessions();
@@ -164,8 +193,15 @@ export async function clearAllSessions() {
     return;
   }
   
-  await api.clearAllSessions();
+  const result = await api.clearAllSessions();
+  if (!result?.success) {
+    showToast(t('deleteFailed', { error: result?.error || 'Unknown error' }));
+    return;
+  }
+
+  state.currentSessions = {};
   state.expandedNodes.clear();
+  state.expandedSessionId = null;
   state.currentSessionId = null;
   await loadSessions();
   showToast(t('allDataCleared'));
@@ -174,28 +210,32 @@ export async function clearAllSessions() {
 /**
  * 更新统计信息
  */
-async function updateStats() {
+async function updateStats(sessionOverride = undefined) {
   const { statsInfo } = state.elements;
+  updateWorkspaceMeta();
   
   if (!state.currentSessionId) {
-    statsInfo.innerHTML = '💤 无活动会话';
+    statsInfo.textContent = t('noActiveSession');
     return;
   }
   
-  const result = await api.getSessionTree(state.currentSessionId);
-  
-  if (!result.session) {
-    statsInfo.innerHTML = `💤 ${getText('noActiveSession')}`;
+  let session = sessionOverride;
+  if (session === undefined) {
+    const result = await api.getSessionTree(state.currentSessionId);
+    session = result?.session;
+  }
+
+  if (!session) {
+    statsInfo.textContent = t('noActiveSession');
     return;
   }
-  
-  const session = result.session;
+
   const nodeCount = Object.keys(session.allNodes || {}).length;
   const rootCount = (session.rootNodes || []).length;
-  const emoji = session.emoji ? session.emoji + ' ' : '';
-  
-  statsInfo.innerHTML = getText('sessionStats', {
-    name: emoji + utils.escapeHtml(session.name),
+  const emoji = session.emoji ? `${session.emoji} ` : '';
+
+  statsInfo.textContent = t('sessionStats', {
+    name: emoji + (session.name || t('noActiveSession')),
     rootCount,
     nodeCount
   });
@@ -205,6 +245,7 @@ async function updateStats() {
  * 尝试自动创建会话
  */
 export async function tryAutoCreateSession() {
+  if (state.currentSettings.trackingEnabled === false) return;
   if (state.currentSettings.autoCreateSession === false) return;
   
   const sessionCount = Object.keys(state.currentSessions).length;
@@ -230,11 +271,6 @@ export async function tryAutoCreateSession() {
         tabId: activeTab.id
       });
       
-      const result = await api.getSessions();
-      if (result && result.sessions) {
-        state.lastDataHash = utils.hashSessions(result.sessions);
-      }
-      
       await loadSessions();
       showToast(t('autoSessionCreated'));
     }
@@ -246,25 +282,36 @@ export async function tryAutoCreateSession() {
 /**
  * 检查并刷新数据
  */
-export async function checkAndRefresh() {
+export function checkAndRefresh() {
+  if (refreshInFlight) {
+    refreshQueued = true;
+    return;
+  }
+
   if (state.refreshTimeout) {
     clearTimeout(state.refreshTimeout);
   }
   
   state.refreshTimeout = setTimeout(async () => {
+    state.refreshTimeout = null;
+
+    if (refreshInFlight) {
+      refreshQueued = true;
+      return;
+    }
+
+    refreshInFlight = true;
     try {
-      const result = await api.getSessions();
-      if (!result) return;
-      
-      const newHash = utils.hashSessions(result.sessions);
-      
-      if (newHash !== state.lastDataHash) {
-        state.lastDataHash = newHash;
-        await loadSessions();
-      }
+      // storage.onChanged 已经说明数据发生变化，这里只需要一次全量读取和渲染。
+      await loadSessions();
     } catch (e) {
       console.error('[MindGit] 刷新数据出错:', e);
+    } finally {
+      refreshInFlight = false;
+      if (refreshQueued) {
+        refreshQueued = false;
+        checkAndRefresh();
+      }
     }
-    state.refreshTimeout = null;
-  }, 300);
+  }, REFRESH_DEBOUNCE_MS);
 }

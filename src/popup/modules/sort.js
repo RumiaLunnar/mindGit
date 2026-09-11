@@ -1,7 +1,5 @@
 // sort.js - 节点排序功能
 
-import { state } from './state.js';
-
 // 排序方式
 export const SORT_MODES = {
   TIME: 'time',           // 最近访问时间
@@ -25,8 +23,7 @@ const DEFAULT_SORT_WEIGHTS = {
  * @param {Object} weights - 权重配置
  * @returns {number}
  */
-function calculateSmartScore(node, session, weights = DEFAULT_SORT_WEIGHTS) {
-  const now = Date.now();
+function calculateSmartScore(node, session, weights = DEFAULT_SORT_WEIGHTS, now = Date.now()) {
   const oneDay = 24 * 60 * 60 * 1000;
   const oneWeek = 7 * oneDay;
   
@@ -62,27 +59,6 @@ function calculateSmartScore(node, session, weights = DEFAULT_SORT_WEIGHTS) {
 }
 
 /**
- * 获取节点的子节点数量（递归计算后代总数）
- * @param {Object} node - 节点数据
- * @param {Object} allNodes - 所有节点
- * @returns {number}
- */
-function getDescendantCount(node, allNodes) {
-  if (!node.children || node.children.length === 0) {
-    return 0;
-  }
-  
-  let count = node.children.length;
-  for (const childId of node.children) {
-    const child = allNodes[childId];
-    if (child) {
-      count += getDescendantCount(child, allNodes);
-    }
-  }
-  return count;
-}
-
-/**
  * 对节点数组进行排序
  * @param {Array} nodeIds - 节点 ID 数组
  * @param {Object} session - 会话数据
@@ -95,6 +71,32 @@ export function sortNodes(nodeIds, session, sortMode = SORT_MODES.SMART) {
   }
   
   const allNodes = session.allNodes;
+  const now = Date.now();
+  const descendantCounts = new Map();
+  const scoreCache = new Map();
+
+  function getCachedDescendantCount(nodeId, visiting = new Set()) {
+    if (descendantCounts.has(nodeId)) return descendantCounts.get(nodeId);
+    if (visiting.has(nodeId)) return 0;
+
+    const node = allNodes[nodeId];
+    if (!node) return 0;
+
+    visiting.add(nodeId);
+    const count = (node.children || []).reduce((total, childId) => (
+      total + 1 + getCachedDescendantCount(childId, visiting)
+    ), 0);
+    visiting.delete(nodeId);
+    descendantCounts.set(nodeId, count);
+    return count;
+  }
+
+  function getCachedSmartScore(node) {
+    if (!scoreCache.has(node.id)) {
+      scoreCache.set(node.id, calculateSmartScore(node, session, DEFAULT_SORT_WEIGHTS, now));
+    }
+    return scoreCache.get(node.id);
+  }
   
   return [...nodeIds].sort((a, b) => {
     const nodeA = allNodes[a];
@@ -109,8 +111,8 @@ export function sortNodes(nodeIds, session, sortMode = SORT_MODES.SMART) {
         
       case SORT_MODES.CHILDREN:
         // 按子节点数量降序
-        const countA = getDescendantCount(nodeA, allNodes);
-        const countB = getDescendantCount(nodeB, allNodes);
+        const countA = getCachedDescendantCount(a);
+        const countB = getCachedDescendantCount(b);
         if (countB !== countA) {
           return countB - countA;
         }
@@ -130,8 +132,8 @@ export function sortNodes(nodeIds, session, sortMode = SORT_MODES.SMART) {
       case SORT_MODES.SMART:
       default:
         // 智能加权排序
-        const scoreA = calculateSmartScore(nodeA, session);
-        const scoreB = calculateSmartScore(nodeB, session);
+        const scoreA = getCachedSmartScore(nodeA);
+        const scoreB = getCachedSmartScore(nodeB);
         return scoreB - scoreA;
     }
   });
@@ -154,7 +156,12 @@ export function sortTree(session, sortMode = SORT_MODES.SMART) {
   };
   
   // 递归排序每个节点的子节点
+  const visited = new Set();
+
   function sortChildrenRecursive(nodeId) {
+    if (visited.has(nodeId)) return;
+    visited.add(nodeId);
+
     const node = allNodes[nodeId];
     if (!node) return;
     

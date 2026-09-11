@@ -5,7 +5,7 @@ import * as api from './api.js';
 import { showToast } from './toast.js';
 import { applyColorTheme } from './theme.js';
 import { t, setLang, getCurrentLang } from './i18n.js';
-import { updateAllTexts } from './i18nUI.js';
+import { updateAllTexts, updateTrackingUI } from './i18nUI.js';
 import { 
   getGitHubToken, 
   saveGitHubToken, 
@@ -54,6 +54,8 @@ function updateSettingsUI() {
   if (language) language.value = state.currentSettings.language || 'zh';
   if (sortMode) sortMode.value = state.currentSettings.sortMode || 'smart';
   if (viewMode) viewMode.value = state.currentSettings.viewMode || 'tree';
+
+  updateTrackingUI();
   
   // 云端同步状态
   updateCloudSyncUI();
@@ -62,7 +64,7 @@ function updateSettingsUI() {
 /**
  * 更新云端同步 UI
  */
-function updateCloudSyncUI() {
+export function updateCloudSyncUI() {
   const token = getGitHubToken();
   const hasToken = !!token;
   
@@ -72,18 +74,20 @@ function updateCloudSyncUI() {
   const downloadBtn = document.getElementById('downloadFromCloudBtn');
   
   if (statusText) {
-    statusText.textContent = hasToken ? '(已配置)' : '(未配置)';
+    statusText.textContent = hasToken ? `(${t('syncConfigured')})` : `(${t('syncNotConfigured')})`;
   }
   
   if (configureBtn) {
-    configureBtn.textContent = hasToken ? '🔑 修改 Token' : '🔑 配置 Token';
+    configureBtn.textContent = hasToken ? t('modifyToken') : t('configureToken');
   }
   
   if (uploadBtn) {
+    uploadBtn.textContent = t('upload');
     uploadBtn.style.display = hasToken ? 'inline-block' : 'none';
   }
   
   if (downloadBtn) {
+    downloadBtn.textContent = t('download');
     downloadBtn.style.display = hasToken ? 'inline-block' : 'none';
   }
 }
@@ -98,8 +102,6 @@ export async function saveSettings() {
   const newSortMode = sortMode?.value || 'smart';
   const newViewMode = viewMode?.value || 'tree';
   const oldLang = state.currentSettings.language;
-  const oldSortMode = state.currentSettings.sortMode;
-  const oldViewMode = state.currentSettings.viewMode || 'tree';
   
   state.currentSettings = {
     ...state.currentSettings,
@@ -108,6 +110,7 @@ export async function saveSettings() {
     showFavicons: state.elements.showFavicons?.checked ?? true,
     defaultExpand: state.elements.defaultExpand?.checked ?? true,
     autoCreateSession: state.elements.autoCreateSession?.checked ?? true,
+    trackingEnabled: state.currentSettings.trackingEnabled !== false,
     colorTheme: newTheme,
     language: newLang,
     sortMode: newSortMode,
@@ -124,21 +127,38 @@ export async function saveSettings() {
     await setLang(newLang);
     updateAllTexts();
   }
-  
-  // 如果排序方式改变了，重新加载树形结构
-  if (newSortMode !== oldSortMode && state.currentSessionId) {
-    const { loadSessionView } = await import('./viewManager.js');
-    await loadSessionView(state.currentSessionId);
-  }
-  
-  // 如果视图模式改变了，切换视图
-  if (newViewMode !== oldViewMode && state.currentSessionId) {
-    const { loadSessionView } = await import('./viewManager.js');
-    await loadSessionView(state.currentSessionId);
-  }
+
+  updateCloudSyncUI();
   
   showToast(t('settingsSaved'));
   return true;
+}
+
+/**
+ * 立即切换网页记录状态，不影响已有会话数据。
+ */
+export async function toggleTracking() {
+  const previous = state.currentSettings?.trackingEnabled !== false;
+  const next = !previous;
+
+  state.currentSettings = {
+    ...state.currentSettings,
+    trackingEnabled: next
+  };
+  updateTrackingUI();
+
+  try {
+    await api.setStorage({ settings: state.currentSettings });
+    showToast(t(next ? 'trackingEnabledToast' : 'trackingDisabledToast'));
+  } catch (error) {
+    state.currentSettings = {
+      ...state.currentSettings,
+      trackingEnabled: previous
+    };
+    updateTrackingUI();
+    showToast(t('trackingSaveFailed'));
+    console.error('[MindGit] 保存记录状态失败:', error);
+  }
 }
 
 /**
